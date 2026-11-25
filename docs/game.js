@@ -4,7 +4,11 @@
 // =====================================================================
 
 const W = 960, H = 540;            // logical resolution
-const INK = '#070403';             // silhouette colour
+const INK = '#35170d';             // deep warm-brown silhouette colour
+const PLAYER_CLOAK = '#71301d';
+const PLAYER_RIM = '#d99445';
+const PLAYER_FACE = '#bd7447';
+const PLAYER_LANTERN = '#ffd47a';
 const LEAF_COLORS = ['#d9662b', '#b8401f', '#e8a03a', '#8f2e16', '#f0c05a'];
 const RES = Math.min(2, window.devicePixelRatio || 1);
 
@@ -453,12 +457,12 @@ vignette.width = W; vignette.height = H;
 {
   const g = vignette.getContext('2d');
   const gr = g.createRadialGradient(W / 2, H * 0.55, H * 0.35, W / 2, H * 0.55, W * 0.75);
-  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(10,4,2,0.8)');
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(48,21,10,0.48)');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
 }
 const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-skyGrad.addColorStop(0, '#2b1420'); skyGrad.addColorStop(0.45, '#7d321d');
-skyGrad.addColorStop(0.72, '#d9813a'); skyGrad.addColorStop(1, '#f2b25c');
+skyGrad.addColorStop(0, '#51304b'); skyGrad.addColorStop(0.45, '#9b4b2b');
+skyGrad.addColorStop(0.72, '#e09a48'); skyGrad.addColorStop(1, '#f6c76f');
 
 // ---------- rendering ----------
 let camX = 0, prevCamX = 0, snapCamera = true;
@@ -705,22 +709,35 @@ function drawPlayer() {
 
   // cloak, head, hood
   const flutter = Math.sin(time * 6) * 1.2 + (Math.abs(p.vx) / RUN) * 3;
+  ctx.fillStyle = PLAYER_CLOAK;
   ctx.beginPath(); ctx.moveTo(-5, -33); ctx.lineTo(6, -33);
   ctx.quadraticCurveTo(10, -22, 9, -13);
   ctx.lineTo(-10 - flutter, -12 + Math.sin(time * 7));
   ctx.quadraticCurveTo(-9, -24, -5, -33); ctx.fill();
+
+  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-5, -31); ctx.quadraticCurveTo(-8, -21, -8, -14); ctx.stroke();
+
+  ctx.fillStyle = INK;
   ctx.beginPath(); ctx.arc(1, -39, 7.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PLAYER_FACE;
+  ctx.beginPath(); ctx.ellipse(-1, -39, 4.2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = INK;
   ctx.beginPath(); ctx.moveTo(-3, -46);
   ctx.quadraticCurveTo(-12, -47, -16 - flutter * 0.6, -40 + Math.sin(time * 5) * 1.2);
   ctx.lineTo(-4, -35); ctx.fill();
+  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-14, -41); ctx.quadraticCurveTo(-8, -45, -3, -43); ctx.stroke();
 
   // arm + swinging lantern
+  ctx.strokeStyle = PLAYER_CLOAK;
   ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(3, -30); ctx.lineTo(10, -25); ctx.lineTo(14, -23); ctx.stroke();
   ctx.save(); ctx.translate(14, -23);
   ctx.rotate(((p.vx * p.face) / RUN) * 0.3 + Math.sin(time * 3) * 0.06);
-  ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 4); ctx.stroke();
-  ctx.fillRect(-4.5, 3, 9, 2); ctx.fillRect(-3.5, 4, 7, 9);
-  ctx.fillStyle = '#ffcf7a'; ctx.fillRect(-2, 6, 4, 5);
+  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 4); ctx.stroke();
+  ctx.fillStyle = INK; ctx.fillRect(-4.5, 3, 9, 2); ctx.fillRect(-3.5, 4, 7, 9);
+  ctx.fillStyle = PLAYER_LANTERN; ctx.fillRect(-2, 6, 4, 5);
   ctx.restore();
   ctx.restore();
 }
