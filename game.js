@@ -106,7 +106,7 @@ function flap() { for (let i = 0; i < 4; i++) noiseHit(700, 1.2, 0.07, 0.06, i *
 
 // ---------- level ----------
 const GROUND = 440;
-const WORLD_END = 7000;
+const WORLD_END = 9000;
 const solids = [
   { x: -240, y: -1000, w: 40, h: 2000, wall: true },
   { x: WORLD_END, y: -1000, w: 40, h: 2000, wall: true },
@@ -119,6 +119,9 @@ const solids = [
   { x: 5200, y: GROUND - 70, w: 260, h: 270 },
   { x: 5560, y: GROUND, w: 560, h: 200 },
   { x: 6220, y: GROUND - 100, w: 780, h: 300 },
+  { x: 7500, y: GROUND, w: 350, h: 200 },
+  { x: 7850, y: GROUND, w: 650, h: 200 },
+  { x: 8500, y: GROUND - 80, w: 500, h: 280 },
 ];
 const leafPits = [
   { x: 900, w: 110, broken: false },
@@ -131,13 +134,13 @@ const plate = { x: 1640, w: 60, press: 0 };
 const brambles = { x: 2900, y: GROUND - 24, w: 90, h: 24 };
 const WIND = { x0: 2150, x1: 2620 };
 const WIND2 = { x0: 5300, x1: 5700 };
-const FIRE_X = 6500;
+const FIRE_X = 8720;
 const PUMPKIN_HOME = 1250;
 const checkpoints = [
   { x: 60, y: GROUND }, { x: 1060, y: GROUND }, { x: 1760, y: GROUND },
   { x: 1950, y: GROUND - 120 }, { x: 2660, y: GROUND }, { x: 3500, y: GROUND },
   { x: 4450, y: GROUND }, { x: 5200, y: GROUND - 70 }, { x: 5580, y: GROUND },
-  { x: 6250, y: GROUND - 100 },
+  { x: 6250, y: GROUND - 100 }, { x: 7400, y: GROUND }, { x: 8200, y: GROUND },
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
@@ -150,7 +153,7 @@ const hints = [
   { x: 6280, y: 130, t: 'follow the lantern glow' },
 ];
 function gateRect() { return { x: gate.x, y: GROUND - gate.h - gate.open * gate.h, w: gate.w, h: gate.h }; }
-const solidList = () => (gate.open < 1 ? [...solids, gateRect()] : solids);
+const solidList = () => (gate.open < 1 ? [...solids, gateRect(), ...movingPlatforms] : [...solids, ...movingPlatforms]);
 
 const pumpkin = { x: PUMPKIN_HOME, y: GROUND - 44, w: 48, h: 44, vy: 0, roll: 0 };
 const crows = [
@@ -223,7 +226,7 @@ function respawn() {
 // ---------- update ----------
 function update(dt) {
   time += dt; windT += dt; gust = gustAt(windT);
-  updateGate(dt); updatePumpkin(dt); updateCrows(dt); updateBursts(dt);
+  updateGate(dt); updatePumpkin(dt); updateCrows(dt); updateBursts(dt); updateMovingPlatforms(dt);
   if (ended) { endT += dt; return; }
   if (player.dead) {
     deadTimer -= dt;
@@ -308,6 +311,12 @@ function updatePlayer(dt) {
   // hazards
   const b = brambles;
   if (p.x + p.w > b.x + 6 && p.x < b.x + b.w - 6 && p.y + p.h > b.y + 6) killPlayer(true);
+  if (p.x + p.w > lateBramble.x && p.x < lateBramble.x + lateBramble.w && p.y + p.h > lateBramble.y) killPlayer(true);
+  for (const pad of bouncePads) {
+    if (p.vy >= 0 && p.x + p.w > pad.x && p.x < pad.x + pad.w && p.y + p.h >= pad.y && p.y + p.h <= pad.y + 12) {
+      p.vy = -820; p.onGround = false; leafBurst(p.x + p.w / 2, pad.y, 18, false); crunch(0.18);
+    }
+  }
   if (p.y > H + 60) killPlayer(false);
 
   // checkpoints
@@ -350,6 +359,13 @@ function updateCrows(dt) {
   }
 }
 
+function updateMovingPlatforms(dt) {
+  for (const platform of movingPlatforms) {
+    platform.x = platform.baseX + Math.sin(time * 0.8 + platform.phase) * platform.ampX;
+    platform.y = platform.baseY + Math.sin(time * 1.1 + platform.phase) * platform.ampY;
+  }
+}
+
 // ---------- particles ----------
 const bursts = [];
 function leafBurst(x, y, n, dark) {
@@ -382,7 +398,7 @@ function newLeaf(anywhere) {
     color: z > 1.45 ? INK : LEAF_COLORS[Math.floor(Math.random() * 5)],
   };
 }
-const leaves = Array.from({ length: 220 }, () => newLeaf(true));
+const leaves = Array.from({ length: 380 }, () => newLeaf(true));
 function updateLeaves(dt, camDX) {
   const wind = 0.15 + gust;
   for (const l of leaves) {
@@ -401,8 +417,8 @@ function branch(g, x, y, len, ang, w, depth, r, o) {
   const x2 = x + Math.cos(ang) * len, y2 = y + Math.sin(ang) * len;
   g.lineWidth = w; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke();
   if (depth <= 0 || len < 3) {
-    if (o.leafColor && r() < 0.35) {
-      g.fillStyle = o.leafColor; g.beginPath(); g.arc(x2, y2, 1 + r() * 2.2, 0, Math.PI * 2); g.fill();
+    if (o.leafColor && r() < 0.78) {
+      g.fillStyle = o.leafColor; g.beginPath(); g.arc(x2, y2, 2 + r() * 3.8, 0, Math.PI * 2); g.fill();
       g.fillStyle = o.color;
     }
     return;
@@ -751,40 +767,29 @@ function drawPlayer() {
   ctx.fillStyle = PLAYER_FACE;
   ctx.beginPath(); ctx.ellipse(-1, -39, 4.2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
 
-  // hair, brows, eyes, nose, and mouth
-  ctx.fillStyle = '#512417';
-  ctx.beginPath(); ctx.moveTo(-5, -42); ctx.quadraticCurveTo(-2, -48, 5, -43);
-  ctx.quadraticCurveTo(3, -41, 5, -38); ctx.quadraticCurveTo(0, -44, -5, -42); ctx.fill();
-  ctx.strokeStyle = '#30150f'; ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.moveTo(-3, -40); ctx.lineTo(-1, -40); ctx.moveTo(1, -40); ctx.lineTo(3, -40); ctx.stroke();
-  ctx.fillStyle = '#24130f';
-  ctx.fillRect(-2, -39.5, 1, 1); ctx.fillRect(2, -39.5, 1, 1);
-  ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(0.8, -36.5); ctx.lineTo(0, -36.5); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-1.2, -35.2); ctx.quadraticCurveTo(0, -34.7, 1.4, -35.2); ctx.stroke();
-
-  ctx.fillStyle = INK;
-  ctx.beginPath(); ctx.moveTo(-3, -46);
-  ctx.quadraticCurveTo(-12, -47, -16 - flutter * 0.6, -40 + Math.sin(time * 5) * 1.2);
-  ctx.lineTo(-4, -35); ctx.fill();
-  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-14, -41); ctx.quadraticCurveTo(-8, -45, -3, -43); ctx.stroke();
-
-  // arm and a detailed swinging lantern
-  ctx.strokeStyle = PLAYER_CLOAK;
-  ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(3, -30); ctx.lineTo(10, -25); ctx.lineTo(14, -23); ctx.stroke();
-  ctx.fillStyle = '#b66d43'; ctx.beginPath(); ctx.arc(14, -23, 1.8, 0, Math.PI * 2); ctx.fill();
-  ctx.save(); ctx.translate(14, -23);
-  ctx.rotate(((p.vx * p.face) / RUN) * 0.3 + Math.sin(time * 3) * 0.06);
-  ctx.strokeStyle = '#c6924f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 4); ctx.stroke();
-  ctx.fillStyle = INK;
-  ctx.fillRect(-5, 3, 10, 2); ctx.fillRect(-4, 5, 8, 9);
-  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1;
-  ctx.strokeRect(-4, 5, 8, 9); ctx.beginPath(); ctx.moveTo(-2, 3); ctx.lineTo(-4, 5); ctx.moveTo(2, 3); ctx.lineTo(4, 5); ctx.stroke();
-  ctx.fillStyle = PLAYER_LANTERN;
-  ctx.fillRect(-2.5, 7, 5, 5);
-  ctx.fillStyle = '#fff1aa'; ctx.fillRect(-1, 8, 2, 3);
-  ctx.restore();
-  ctx.restore();
+  // softer hair, brows, eyes, freckles, nose, and smile
+  ctx.fillStyle = '#7a3a24';
+  ctx.beginPath(); ctx.moveTo(-6, -43); ctx.quadraticCurveTo(-4, -49, 3, -46);
+  ctx.quadraticCurveTo(7, -43, 5, -37); ctx.quadraticCurveTo(3, -42, -1, -44);
+  ctx.quadraticCurveTo(-4, -44, -6, -43); ctx.fill();
+  ctx.fillStyle = '#d68b72';
+  ctx.beginPath(); ctx.ellipse(-3.7, -37.7, 1.5, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6, -37.7, 1.5, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#4b2618'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(-3.8, -41); ctx.quadraticCurveTo(-2.2, -41.8, -0.8, -41); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0.8, -41); ctx.quadraticCurveTo(2.2, -41.8, 3.8, -41); ctx.stroke();
+  ctx.fillStyle = '#2b1711';
+  ctx.beginPath(); ctx.arc(-2.1, -39.8, 0.85, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(2.1, -39.8, 0.85, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff2b4';
+  ctx.beginPath(); ctx.arc(-1.8, -40.1, 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(2.4, -40.1, 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#713621'; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.moveTo(0, -38.4); ctx.quadraticCurveTo(0.5, -37.2, 0.1, -36.8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1.5, -35.4); ctx.quadraticCurveTo(0.1, -34.2, 1.7, -35.4); ctx.stroke();
+  ctx.fillStyle = '#c96a50';
+  ctx.fillRect(-3.4, -37.1, 0.55, 0.55); ctx.fillRect(-2.6, -36.7, 0.45, 0.45);
+  ctx.fillRect(2.8, -37.1, 0.55, 0.55); ctx.fillRect(3.5, -36.7, 0.45, 0.45);
 }
 function drawBursts() {
   for (const b of bursts) {
@@ -819,6 +824,20 @@ function drawWorld() {
   drawLeafClusters();
   for (const lp of leafPits) drawLeafPile(lp);
   drawPlate(); drawGate(); drawBrambles(); drawPumpkin();
+  ctx.fillStyle = '#5a2a16';
+  for (const platform of movingPlatforms) {
+    ctx.fillRect(platform.x, platform.y, platform.w, platform.h);
+    ctx.fillStyle = '#b86b32'; ctx.fillRect(platform.x, platform.y, platform.w, 3);
+    ctx.fillStyle = '#5a2a16';
+  }
+  for (const pad of bouncePads) {
+    ctx.fillStyle = '#7a3516'; ctx.fillRect(pad.x, pad.y + 5, pad.w, 6);
+    ctx.fillStyle = '#e09a48'; ctx.fillRect(pad.x + 8, pad.y + 2, pad.w - 16, 4);
+  }
+  ctx.fillStyle = INK;
+  for (let x = lateBramble.x; x < lateBramble.x + lateBramble.w; x += 12) {
+    ctx.beginPath(); ctx.moveTo(x - 5, GROUND); ctx.lineTo(x, lateBramble.y); ctx.lineTo(x + 5, GROUND); ctx.fill();
+  }
   for (const c of crows) if (!c.gone) drawCrow(c);
   drawFire(); drawPlayer(); drawBursts(); drawGlow();
 }
@@ -891,7 +910,7 @@ requestAnimationFrame(frame);
 function drawLeafClusters() {
   const colors = ['#c85d2d', '#d98a3d', '#9b3d22', '#e2a84f', '#783019'];
   const r = rng(912);
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 180; i++) {
     const worldX = i * 67 + r() * 48;
     const sx = worldX - camX;
     if (sx < -40 || sx > W + 40) continue;
@@ -900,3 +919,16 @@ function drawLeafClusters() {
     drawLeaf(sx, y, size, r() * 6, r() > 0.5 ? 1 : -1, colors[i % colors.length]);
   }
 }
+
+// ---------- extended level features ----------
+const movingPlatforms = [
+  { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 140, h: 18, phase: 0, ampX: 55, ampY: 35 },
+  { x: 7020, y: 300, baseX: 7020, baseY: 300, w: 130, h: 18, phase: 2.1, ampX: 45, ampY: 55 },
+  { x: 7300, y: 250, baseX: 7300, baseY: 250, w: 150, h: 18, phase: 4.2, ampX: 60, ampY: 45 },
+];
+const bouncePads = [
+  { x: 6800, y: GROUND - 8, w: 55 },
+  { x: 7550, y: GROUND - 8, w: 55 },
+];
+const lateBramble = { x: 7900, y: GROUND - 52, w: 150, h: 52 };
+const finalPlate = { x: 8200, w: 90, press: 0 };
