@@ -106,25 +106,38 @@ function flap() { for (let i = 0; i < 4; i++) noiseHit(700, 1.2, 0.07, 0.06, i *
 
 // ---------- level ----------
 const GROUND = 440;
+const WORLD_END = 7000;
 const solids = [
   { x: -240, y: -1000, w: 40, h: 2000, wall: true },
-  { x: 4400, y: -1000, w: 40, h: 2000, wall: true },
+  { x: WORLD_END, y: -1000, w: 40, h: 2000, wall: true },
   { x: -200, y: GROUND, w: 1100, h: 200 },
   { x: 1010, y: GROUND, w: 890, h: 200 },
   { x: 1900, y: GROUND - 120, w: 400, h: 320 },   // high plateau (needs a step up)
   { x: 2600, y: GROUND, w: 750, h: 200 },
   { x: 3450, y: GROUND, w: 950, h: 200 },
+  { x: 4400, y: GROUND, w: 700, h: 200 },
+  { x: 5200, y: GROUND - 70, w: 260, h: 270 },
+  { x: 5560, y: GROUND, w: 560, h: 200 },
+  { x: 6220, y: GROUND - 100, w: 780, h: 300 },
 ];
-const leafPits = [{ x: 900, w: 110, broken: false }, { x: 3350, w: 100, broken: false }];
+const leafPits = [
+  { x: 900, w: 110, broken: false },
+  { x: 3350, w: 100, broken: false },
+  { x: 5100, w: 100, broken: false },
+  { x: 6120, w: 100, broken: false },
+];
 const gate = { x: 1700, w: 26, h: 170, open: 0, latched: false };
 const plate = { x: 1640, w: 60, press: 0 };
 const brambles = { x: 2900, y: GROUND - 24, w: 90, h: 24 };
 const WIND = { x0: 2150, x1: 2620 };
-const FIRE_X = 4080;
+const WIND2 = { x0: 5300, x1: 5700 };
+const FIRE_X = 6500;
 const PUMPKIN_HOME = 1250;
 const checkpoints = [
   { x: 60, y: GROUND }, { x: 1060, y: GROUND }, { x: 1760, y: GROUND },
   { x: 1950, y: GROUND - 120 }, { x: 2660, y: GROUND }, { x: 3500, y: GROUND },
+  { x: 4450, y: GROUND }, { x: 5200, y: GROUND - 70 }, { x: 5580, y: GROUND },
+  { x: 6250, y: GROUND - 100 },
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
@@ -132,6 +145,9 @@ const hints = [
   { x: 480, y: 180, t: 'space   jump' },
   { x: 1180, y: 180, t: 'walk into things to push them' },
   { x: 2020, y: 150, t: 'listen to the wind' },
+  { x: 4520, y: 180, t: 'the old orchard continues beyond the hollow' },
+  { x: 5380, y: 150, t: 'a second gust crosses the ridge' },
+  { x: 6280, y: 130, t: 'follow the lantern glow' },
 ];
 function gateRect() { return { x: gate.x, y: GROUND - gate.h - gate.open * gate.h, w: gate.w, h: gate.h }; }
 const solidList = () => (gate.open < 1 ? [...solids, gateRect()] : solids);
@@ -140,6 +156,8 @@ const pumpkin = { x: PUMPKIN_HOME, y: GROUND - 44, w: 48, h: 44, vy: 0, roll: 0 
 const crows = [
   { x: 660, y: GROUND }, { x: 1480, y: GROUND }, { x: 2240, y: GROUND - 120 },
   { x: 3180, y: GROUND }, { x: 3760, y: GROUND },
+  { x: 4580, y: GROUND }, { x: 5350, y: GROUND - 70 },
+  { x: 5750, y: GROUND }, { x: 6380, y: GROUND - 100 },
 ].map((c, i) => ({ ...c, fly: false, gone: false, vx: 0, vy: 0, t: i * 2.3, face: hash(i) > 0.5 ? 1 : -1 }));
 
 const brambleShape = (() => {
@@ -230,7 +248,8 @@ function updatePlayer(dt) {
   }
 
   // wind carries you through the air while it gusts
-  const inWind = p.x + p.w > WIND.x0 && p.x < WIND.x1;
+  const inWind = (p.x + p.w > WIND.x0 && p.x < WIND.x1) ||
+                  (p.x + p.w > WIND2.x0 && p.x < WIND2.x1);
   if (inWind && !p.onGround) p.vx = Math.min(p.vx + gust * 900 * dt, 560);
 
   // jumping (with a short buffer and "coyote time" for forgiving controls)
@@ -827,7 +846,7 @@ function drawOverlay() {
 
 function render(dt) {
   const p = player;
-  const target = clamp(p.x + p.w / 2 - W * 0.42 + p.face * 40, -200, 4400 - W);
+  const target = clamp(p.x + p.w / 2 - W * 0.42 + p.face * 40, -200, WORLD_END - W);
   if (snapCamera) { camX = target; prevCamX = camX; snapCamera = false; }
   else camX += (target - camX) * Math.min(1, dt * 2.5);
   const camDX = camX - prevCamX; prevCamX = camX;
