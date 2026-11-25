@@ -363,7 +363,7 @@ function newLeaf(anywhere) {
     color: z > 1.45 ? INK : LEAF_COLORS[Math.floor(Math.random() * 5)],
   };
 }
-const leaves = Array.from({ length: 150 }, () => newLeaf(true));
+const leaves = Array.from({ length: 220 }, () => newLeaf(true));
 function updateLeaves(dt, camDX) {
   const wind = 0.15 + gust;
   for (const l of leaves) {
@@ -681,7 +681,7 @@ function drawPlayer() {
   const cx = p.x + p.w / 2, by = p.y + p.h;
   const moving = p.onGround && Math.abs(p.vx) > 20;
   const ph = p.walk;
-  ctx.save(); ctx.translate(cx, by); ctx.scale(p.face, 1);
+  ctx.save(); ctx.translate(cx, by); ctx.scale(p.face * 1.25, 1.25);
   ctx.fillStyle = INK; ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.translate(0, moving ? -Math.abs(Math.sin(ph)) * 1.5 : Math.sin(time * 2) * 0.4);
 
@@ -797,6 +797,7 @@ function drawWorld() {
     ctx.fillRect(s.x, s.y, s.w, s.h);
   }
   drawGrass(x0, x1);
+  drawLeafClusters();
   for (const lp of leafPits) drawLeafPile(lp);
   drawPlate(); drawGate(); drawBrambles(); drawPumpkin();
   for (const c of crows) if (!c.gone) drawCrow(c);
@@ -866,3 +867,17 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// ---------- new leaf clusters ----------
+function drawLeafClusters() {
+  const colors = ['#c85d2d', '#d98a3d', '#9b3d22', '#e2a84f', '#783019'];
+  const r = rng(912);
+  for (let i = 0; i < 90; i++) {
+    const worldX = i * 67 + r() * 48;
+    const sx = worldX - camX;
+    if (sx < -40 || sx > W + 40) continue;
+    const y = GROUND - 5 - r() * (i % 5 === 0 ? 46 : 12);
+    const size = 4 + r() * 7;
+    drawLeaf(sx, y, size, r() * 6, r() > 0.5 ? 1 : -1, colors[i % colors.length]);
+  }
+}
