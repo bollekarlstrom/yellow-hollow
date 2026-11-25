@@ -689,8 +689,9 @@ function drawPlayer() {
   ctx.lineWidth = 4;
   const leg = (hx, a1, a2) => {
     const kx = hx + Math.sin(a1) * 8, ky = -16 + Math.cos(a1) * 8;
-    ctx.beginPath(); ctx.moveTo(hx, -16); ctx.lineTo(kx, ky);
-    ctx.lineTo(kx + Math.sin(a2) * 8, ky + Math.cos(a2) * 8); ctx.stroke();
+    const fx = kx + Math.sin(a2) * 8, fy = ky + Math.cos(a2) * 8;
+    ctx.beginPath(); ctx.moveTo(hx, -16); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.fillRect(fx - 2, fy - 1, 7, 3);
   };
   if (!p.onGround) {
     if (p.vy < 0) { leg(-1, -0.2, -0.7); leg(2, 0.9, 0.1); }
@@ -718,10 +719,29 @@ function drawPlayer() {
   ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(-5, -31); ctx.quadraticCurveTo(-8, -21, -8, -14); ctx.stroke();
 
+  // cloak folds, collar, and shoulder clasp
+  ctx.strokeStyle = '#a85a32'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-3, -31); ctx.quadraticCurveTo(-1, -24, -3, -16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -30); ctx.quadraticCurveTo(7, -23, 5, -15); ctx.stroke();
+  ctx.fillStyle = PLAYER_RIM;
+  ctx.beginPath(); ctx.ellipse(3, -32, 2.2, 2.8, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(3, -32, 0.8, 0, Math.PI * 2); ctx.fill();
+
   ctx.fillStyle = INK;
   ctx.beginPath(); ctx.arc(1, -39, 7.5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = PLAYER_FACE;
   ctx.beginPath(); ctx.ellipse(-1, -39, 4.2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+
+  // hair, brows, eyes, nose, and mouth
+  ctx.fillStyle = '#512417';
+  ctx.beginPath(); ctx.moveTo(-5, -42); ctx.quadraticCurveTo(-2, -48, 5, -43);
+  ctx.quadraticCurveTo(3, -41, 5, -38); ctx.quadraticCurveTo(0, -44, -5, -42); ctx.fill();
+  ctx.strokeStyle = '#30150f'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(-3, -40); ctx.lineTo(-1, -40); ctx.moveTo(1, -40); ctx.lineTo(3, -40); ctx.stroke();
+  ctx.fillStyle = '#24130f';
+  ctx.fillRect(-2, -39.5, 1, 1); ctx.fillRect(2, -39.5, 1, 1);
+  ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(0.8, -36.5); ctx.lineTo(0, -36.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1.2, -35.2); ctx.quadraticCurveTo(0, -34.7, 1.4, -35.2); ctx.stroke();
 
   ctx.fillStyle = INK;
   ctx.beginPath(); ctx.moveTo(-3, -46);
@@ -730,14 +750,20 @@ function drawPlayer() {
   ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(-14, -41); ctx.quadraticCurveTo(-8, -45, -3, -43); ctx.stroke();
 
-  // arm + swinging lantern
+  // arm and a detailed swinging lantern
   ctx.strokeStyle = PLAYER_CLOAK;
   ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(3, -30); ctx.lineTo(10, -25); ctx.lineTo(14, -23); ctx.stroke();
+  ctx.fillStyle = '#b66d43'; ctx.beginPath(); ctx.arc(14, -23, 1.8, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.translate(14, -23);
   ctx.rotate(((p.vx * p.face) / RUN) * 0.3 + Math.sin(time * 3) * 0.06);
-  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 4); ctx.stroke();
-  ctx.fillStyle = INK; ctx.fillRect(-4.5, 3, 9, 2); ctx.fillRect(-3.5, 4, 7, 9);
-  ctx.fillStyle = PLAYER_LANTERN; ctx.fillRect(-2, 6, 4, 5);
+  ctx.strokeStyle = '#c6924f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 4); ctx.stroke();
+  ctx.fillStyle = INK;
+  ctx.fillRect(-5, 3, 10, 2); ctx.fillRect(-4, 5, 8, 9);
+  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1;
+  ctx.strokeRect(-4, 5, 8, 9); ctx.beginPath(); ctx.moveTo(-2, 3); ctx.lineTo(-4, 5); ctx.moveTo(2, 3); ctx.lineTo(4, 5); ctx.stroke();
+  ctx.fillStyle = PLAYER_LANTERN;
+  ctx.fillRect(-2.5, 7, 5, 5);
+  ctx.fillStyle = '#fff1aa'; ctx.fillRect(-1, 8, 2, 3);
   ctx.restore();
   ctx.restore();
 }
