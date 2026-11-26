@@ -905,9 +905,7 @@ function drawWorld() {
   drawPlate(); drawGate(); drawBrambles(); drawPumpkin();
   ctx.fillStyle = '#5a2a16';
   for (const platform of movingPlatforms) {
-    ctx.fillRect(platform.x, platform.y, platform.w, platform.h);
-    ctx.fillStyle = '#b86b32'; ctx.fillRect(platform.x, platform.y, platform.w, 3);
-    ctx.fillStyle = '#5a2a16';
+    drawMovingPlatform(platform);
   }
   for (const pad of bouncePads) {
     ctx.fillStyle = '#7a3516'; ctx.fillRect(pad.x, pad.y + 5, pad.w, 6);
@@ -1061,3 +1059,30 @@ const testLevel = [
   { x: 9660, y: GROUND - 130, w: 200, h: 20 },
   { x: 9900, y: GROUND, w: 200, h: 20 },
 ];
+function drawMovingPlatform(platform) {
+  const x = platform.x, y = platform.y, w = platform.w, h = platform.h;
+  ctx.save(); ctx.fillStyle = '#5a2a16'; ctx.beginPath();
+  ctx.moveTo(x + 4, y);
+  ctx.quadraticCurveTo(x + w * 0.12, y - 5, x + w * 0.28, y - 2);
+  ctx.quadraticCurveTo(x + w * 0.5, y - 6, x + w * 0.72, y - 2);
+  ctx.quadraticCurveTo(x + w * 0.88, y - 5, x + w - 4, y);
+  ctx.lineTo(x + w - 7, y + h); ctx.lineTo(x + 7, y + h); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#b86b32'; ctx.fillRect(x + 8, y - 2, w - 16, 4);
+  ctx.fillStyle = '#d08a43'; ctx.fillRect(x + 15, y - 3, w * 0.27, 2); ctx.fillRect(x + w * 0.56, y - 2, w * 0.18, 2);
+  ctx.strokeStyle = 'rgba(54,24,12,0.72)'; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(x + w * 0.18, y + 4); ctx.lineTo(x + w * 0.21, y + h - 4);
+  ctx.moveTo(x + w * 0.49, y + 2); ctx.lineTo(x + w * 0.46, y + h - 5);
+  ctx.moveTo(x + w * 0.78, y + 5); ctx.lineTo(x + w * 0.76, y + h - 3); ctx.stroke();
+  ctx.fillStyle = '#71803a'; ctx.beginPath(); ctx.moveTo(x + 2, y + 2);
+  ctx.quadraticCurveTo(x + 18, y - 8, x + 34, y + 1); ctx.quadraticCurveTo(x + 48, y - 7, x + 64, y + 2);
+  ctx.lineTo(x + 60, y + 7); ctx.lineTo(x + 6, y + 7); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < 3; i++) {
+    const lx = x + w * (0.18 + i * 0.28);
+    drawLeaf(lx, y - 5 - (i % 2) * 3, 4, time * 0.7 + i, i % 2 ? -1 : 1, LEAF_COLORS[i % LEAF_COLORS.length]);
+  }
+  ctx.strokeStyle = '#7f8a3e'; ctx.lineWidth = 1.4; ctx.beginPath();
+  ctx.moveTo(x + 20, y + h - 2); ctx.quadraticCurveTo(x + 14, y + h + 12, x + 21, y + h + 19);
+  ctx.moveTo(x + w - 28, y + h - 2); ctx.quadraticCurveTo(x + w - 35, y + h + 9, x + w - 28, y + h + 15); ctx.stroke();
+  radial(x + w / 2, y + h * 0.35, 12, 'rgba(255,192,94,0.16)');
+  ctx.fillStyle = '#ffd47a'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.35, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}

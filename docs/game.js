@@ -905,9 +905,7 @@ function drawWorld() {
   drawPlate(); drawGate(); drawBrambles(); drawPumpkin();
   ctx.fillStyle = '#5a2a16';
   for (const platform of movingPlatforms) {
-    ctx.fillRect(platform.x, platform.y, platform.w, platform.h);
-    ctx.fillStyle = '#b86b32'; ctx.fillRect(platform.x, platform.y, platform.w, 3);
-    ctx.fillStyle = '#5a2a16';
+    drawMovingPlatform(platform);
   }
   for (const pad of bouncePads) {
     ctx.fillStyle = '#7a3516'; ctx.fillRect(pad.x, pad.y + 5, pad.w, 6);
