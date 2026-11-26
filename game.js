@@ -46,15 +46,9 @@ addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jumpQueued = true;
     if (e.code === 'KeyM') toggleMute();
     if (e.code === 'KeyR' && !player.dead && !ended) killPlayer(false);
-    if (e.code === 'KeyC' && !ended) {
-      cpIndex = Math.min(checkpoints.length - 1, cpIndex + 1);
-      respawn();
-    }
-    if (/^Digit[1-9]$/.test(e.code) && !ended) {
-      const index = Math.min(checkpoints.length - 1, Number(e.code.slice(-1)) - 1);
-      cpIndex = index;
-      respawn();
-    }
+    if (e.code === 'KeyC' && !ended) warpCheckpoint(cpIndex + 1);
+    if (/^Digit[1-9]$/.test(e.code) && !ended) warpCheckpoint(Number(e.code.slice(-1)) - 1);
+    if (e.code === 'Digit0' && !ended) warpCheckpoint(checkpoints.length - 1);
     if (e.code === 'Enter' && ended && endT > 2) location.reload();
   }
   keys[e.code] = true;
@@ -164,7 +158,7 @@ const checkpoints = [
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
-  { x: 130, y: 205, t: 'R restart   C next checkpoint   1-9 choose checkpoint   M mute', small: true },
+  { x: 130, y: 205, t: 'R restart   C next checkpoint   1-9 and 0 choose checkpoint   M mute', small: true },
   { x: 480, y: 180, t: 'space   jump' },
   { x: 1180, y: 180, t: 'walk into things to push them' },
   { x: 2020, y: 150, t: 'listen to the wind' },
@@ -236,6 +230,15 @@ function killPlayer(burst) {
     leafBurst(player.x + player.w / 2, player.y + player.h / 2, 50, true);
     thud();
   } else if (player.y > H) thud();
+}
+
+function warpCheckpoint(index) {
+  cpIndex = Math.max(0, Math.min(checkpoints.length - 1, index));
+  ended = false;
+  endT = 0;
+  player.dead = false;
+  player.hidden = false;
+  respawn();
 }
 
 function respawn() {
