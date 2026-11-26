@@ -611,6 +611,17 @@ function drawPuffs() {
     radial(sx, p.y, p.r, 'rgba(255,190,140,0.10)');
   }
 }
+function drawFireflies() {
+  for (let i = 0; i < 16; i++) {
+    const worldX = 520 + i * 137 + Math.sin(i * 8.3) * 90;
+    const sx = worldX - camX * 0.72;
+    if (sx < -20 || sx > W + 20) continue;
+    const x = sx + Math.sin(time * (0.4 + i * 0.01) + i) * 14;
+    const y = 175 + hash(i) * 230 + Math.cos(time * 0.7 + i * 1.7) * 8;
+    const pulse = 0.35 + (Math.sin(time * 2 + i * 2.1) + 1) * 0.25;
+    radial(x, y, 5 + pulse * 4, `rgba(255,214,112,${pulse * 0.65})`);
+  }
+}
 function drawHints() {
   ctx.save(); ctx.textAlign = 'center';
   for (const h of hints) {
@@ -993,7 +1004,7 @@ function drawLeafClusters() {
 const movingPlatforms = [
   { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 190, h: 22, phase: 0, ampX: 35, ampY: 18 },
   { x: 7020, y: 310, baseX: 7020, baseY: 310, w: 180, h: 22, phase: 2.1, ampX: 30, ampY: 24 },
-  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase:  4.2, ampX: 35, ampY: 20 },
+  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase:     4.2, ampX: 35, ampY: 20 },
   { x: 9700, y: 330, baseX: 9700, baseY: 330, w: 180, h: 22, phase: 1.2, ampX: 45, ampY: 28 },
   { x: 10080, y: 280, baseX: 10080, baseY: 280, w: 190, h: 22, phase: 3.4, ampX: 40, ampY: 35 },
   { x: 10620, y: 330, baseX: 10620, baseY: 330, w: 180, h: 22, phase: 5.1, ampX: 50, ampY: 25 },
