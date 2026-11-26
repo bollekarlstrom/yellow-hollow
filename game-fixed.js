@@ -872,6 +872,26 @@ function drawPlayer() {
   ctx.fillStyle = '#b56c4c';
   ctx.beginPath(); ctx.arc(5.0, -35.6, 0.28, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(6.1, -35.3, 0.22, 0, Math.PI * 2); ctx.fill();
+
+  // quiet featureless profile: hood, cheek contour, and forward nose only
+  ctx.fillStyle = '#a94e32';
+  ctx.beginPath(); ctx.moveTo(-6.5, -43);
+  ctx.quadraticCurveTo(-5.8, -49.5, 0.8, -49);
+  ctx.quadraticCurveTo(7.4, -48.4, 8.8, -42);
+  ctx.quadraticCurveTo(9.8, -38.8, 7.8, -36.2);
+  ctx.lineTo(10.5, -35.8); ctx.lineTo(7.2, -34.2);
+  ctx.quadraticCurveTo(1.5, -33.2, -4.8, -36.8);
+  ctx.quadraticCurveTo(-7.4, -39.2, -6.5, -43); ctx.fill();
+
+  ctx.fillStyle = '#71301d';
+  ctx.beginPath(); ctx.moveTo(-6.8, -43);
+  ctx.quadraticCurveTo(-7.4, -49.8, -0.5, -51);
+  ctx.quadraticCurveTo(5.8, -51.8, 9.5, -46.5);
+  ctx.quadraticCurveTo(5.8, -47.8, 2.1, -46.2);
+  ctx.quadraticCurveTo(-3.2, -44.4, -6.8, -43); ctx.fill();
+
+  ctx.strokeStyle = '#d18b53'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(7.8, -36.2); ctx.lineTo(10.5, -35.8); ctx.lineTo(7.2, -34.2); ctx.stroke();
 }
 function drawBursts() {
   for (const b of bursts) {
