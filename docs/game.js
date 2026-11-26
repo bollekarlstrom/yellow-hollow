@@ -46,6 +46,15 @@ addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jumpQueued = true;
     if (e.code === 'KeyM') toggleMute();
     if (e.code === 'KeyR' && !player.dead && !ended) killPlayer(false);
+    if (e.code === 'KeyC' && !ended) {
+      cpIndex = Math.min(checkpoints.length - 1, cpIndex + 1);
+      respawn();
+    }
+    if (/^Digit[1-9]$/.test(e.code) && !ended) {
+      const index = Math.min(checkpoints.length - 1, Number(e.code.slice(-1)) - 1);
+      cpIndex = index;
+      respawn();
+    }
     if (e.code === 'Enter' && ended && endT > 2) location.reload();
   }
   keys[e.code] = true;
@@ -144,7 +153,7 @@ const checkpoints = [
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
-  { x: 130, y: 205, t: 'R  restart from checkpoint      M  mute', small: true },
+  { x: 130, y: 205, t: 'R restart   C next checkpoint   1-9 choose checkpoint   M mute', small: true },
   { x: 480, y: 180, t: 'space   jump' },
   { x: 1180, y: 180, t: 'walk into things to push them' },
   { x: 2020, y: 150, t: 'listen to the wind' },
@@ -179,8 +188,8 @@ const brambleShape = (() => {
 })();
 
 // ---------- player & state ----------
-const RUN = 220, ACC = 1600, AIR_ACC = 900, FRICTION = 1800, AIR_DRAG = 200;
-const GRAV = 1800, JUMP = 620, MAX_FALL = 900;
+const RUN = 220, ACC = 1600, AIR_ACC = 1100, FRICTION = 1800, AIR_DRAG = 200;
+const GRAV = 1600, JUMP = 760, MAX_FALL = 820;
 const player = {
   x: 60, y: GROUND - 44, w: 20, h: 44, vx: 0, vy: 0, face: 1,
   onGround: false, coyote: 0, jumpBuf: 0, walk: 0, stepAcc: 0,
@@ -922,9 +931,9 @@ function drawLeafClusters() {
 
 // ---------- extended level features ----------
 const movingPlatforms = [
-  { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 140, h: 18, phase: 0, ampX: 55, ampY: 35 },
-  { x: 7020, y: 300, baseX: 7020, baseY: 300, w: 130, h: 18, phase: 2.1, ampX: 45, ampY: 55 },
-  { x: 7300, y: 250, baseX: 7300, baseY: 250, w: 150, h: 18, phase: 4.2, ampX: 60, ampY: 45 },
+  { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 190, h: 22, phase: 0, ampX: 35, ampY: 18 },
+  { x: 7020, y: 310, baseX: 7020, baseY: 310, w: 180, h: 22, phase: 2.1, ampX: 30, ampY: 24 },
+  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase: 4.2, ampX: 35, ampY: 20 },
 ];
 const bouncePads = [
   { x: 6800, y: GROUND - 8, w: 55 },
