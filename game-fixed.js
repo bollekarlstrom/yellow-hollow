@@ -79,7 +79,81 @@ function startAudio() {
     windGain = actx.createGain(); windGain.gain.value = 0.1;
     src.connect(windFilter); windFilter.connect(windGain); windGain.connect(master);
     src.start();
+    startMusic();
   } catch (err) { actx = null; }
+}
+// Soft ambient music: slow warm pad chords, an occasional music-box note, and a gentle echo.
+// It plays quietly underneath the wind (both go through the same master volume, so M mutes all).
+let musicGain = null, musicVerb = null, musicNext = 0, musicChord = 0, musicNoteT = 0;
+const MUSIC_CHORDS = [            // frequencies in Hz (D minor-ish, dreamy)
+  [146.83, 220.00, 261.63, 329.63],   // Dm9-ish   D A C E
+  [116.54, 174.61, 233.08, 293.66],   // Bbmaj     Bb F Bb D
+  [130.81, 196.00, 261.63, 329.63],   // C         C G C E
+  [110.00, 164.81, 220.00, 261.63],   // Am        A E A C
+];
+const MUSIC_MELODY = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00];   // A C D E G A (pentatonic)
+function makeReverb() {
+  const len = actx.sampleRate * 3.2, buf = actx.createBuffer(2, len, actx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+  }
+  const c = actx.createConvolver(); c.buffer = buf; return c;
+}
+function startMusic() {
+  musicGain = actx.createGain(); musicGain.gain.value = 0;
+  musicGain.gain.setTargetAtTime(0.16, actx.currentTime + 0.5, 3);      // slow fade in
+  musicVerb = makeReverb();
+  const wet = actx.createGain(); wet.gain.value = 0.55;
+  musicVerb.connect(wet); wet.connect(musicGain);
+  musicGain.connect(master);
+  musicNext = actx.currentTime + 0.3; musicNoteT = actx.currentTime + 4;
+}
+function padVoice(freq, t, dur) {
+  for (const det of [-4, 4]) {
+    const o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq; o.detune.value = det;
+    f.type = 'lowpass'; f.frequency.value = 700; f.Q.value = 0.3;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.06, t + dur * 0.35);
+    g.gain.linearRampToValueAtTime(0.045, t + dur * 0.75);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur + 3);
+    o.connect(f); f.connect(g); g.connect(musicGain); g.connect(musicVerb);
+    o.start(t); o.stop(t + dur + 3.2);
+  }
+}
+function musicBoxNote(freq, t) {
+  for (const [mult, vol] of [[1, 0.15], [2, 0.035], [3.01, 0.014]]) {   // soft bell-like tone
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = freq * mult;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6 / mult);
+    o.connect(g); g.connect(musicVerb); g.connect(musicGain);
+    o.start(t); o.stop(t + 2.8);
+  }
+}
+function updateMusic() {
+  if (!actx || !musicGain) return;
+  const now = actx.currentTime;
+  if (musicNext < now) musicNext = now + 0.1;          // the tab was hidden: don't play all the missed chords at once
+  if (musicNoteT < now) musicNoteT = now + 1;
+  if (now > musicNext - 0.5) {                       // schedule the next pad chord (every ~9 s)
+    const chord = MUSIC_CHORDS[musicChord % MUSIC_CHORDS.length];
+    for (const f of chord) padVoice(f, musicNext, 8.5);
+    musicChord++; musicNext += 9;
+  }
+  if (now > musicNoteT - 0.3) {                       // now and then, a few soft music-box notes
+    if (Math.random() < 0.75) {
+      const n = 1 + Math.floor(Math.random() * 3);
+      let idx = Math.floor(Math.random() * MUSIC_MELODY.length);
+      for (let k = 0; k < n; k++) {
+        musicBoxNote(MUSIC_MELODY[idx], musicNoteT + k * (0.45 + Math.random() * 0.3));
+        idx = Math.max(0, Math.min(MUSIC_MELODY.length - 1, idx + (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2))));
+      }
+    }
+    musicNoteT += 2.2 + Math.random() * 2.8;
+  }
 }
 function toggleMute() { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.7; }
 function noiseHit(freq, q, vol, dur, delay = 0, type = 'bandpass', attack = 0.005) {
@@ -109,7 +183,7 @@ function flap() { for (let i = 0; i < 4; i++) noiseHit(700, 1.2, 0.07, 0.06, i *
 
 // ---------- level ----------
 const GROUND = 440;
-const WORLD_END = 15600;
+const WORLD_END = 18400;
 const solids = [
   { x: -240, y: -1000, w: 40, h: 2000, wall: true },
   { x: WORLD_END, y: -1000, w: 40, h: 2000, wall: true },
@@ -141,7 +215,12 @@ const solids = [
   { x: 13870, y: GROUND - 108, w: 36, h: 48, stump: true },
   { x: 14190, y: GROUND - 168, w: 36, h: 48, stump: true },
   { x: 14510, y: GROUND - 228, w: 36, h: 48, stump: true },
-  { x: 14910, y: GROUND, w: 690, h: 200 },            // campfire clearing
+  { x: 14910, y: GROUND, w: 590, h: 200 },            // treasure meadow (arch puzzle)
+  // --- arch chasm is 15500..15900 ---
+  { x: 15900, y: GROUND, w: 1360, h: 200 },           // lantern glade + crate yard
+  { x: 16760, y: GROUND - 100, w: 200, h: 20 },       // floating ledge with the second crate on it (you can walk under it)
+  { x: 17260, y: GROUND - 250, w: 420, h: 450 },      // the tall cliff: only two stacked crates reach it
+  { x: 17680, y: GROUND, w: 720, h: 200 },            // campfire clearing
 ];
 const leafPits = [
   { x: 900, w: 110, broken: false },
@@ -157,17 +236,10 @@ const brambles = { x: 2900, y: GROUND - 24, w: 90, h: 24 };
 const WIND = { x0: 2150, x1: 2620 };
 const WIND2 = { x0: 5300, x1: 5700 };
 const WIND3 = { x0: 9660, x1: 10180 };
-const FIRE_X = 15250;
+const FIRE_X = 18050;
 const PUMPKIN_HOME = 1250;
-const hillPlate = { x: 7660, w: 80, press: 0 };
-const hillCrate = { x: 7780, y: GROUND - 48, w: 48, h: 48, vy: 0, roll: 0 };
-const hillGate = { open: 0 };
-const hillSteps = [
-  { x: 8000, y: GROUND - 40, w: 120, h: 40 },
-  { x: 8120, y: GROUND - 80, w: 120, h: 80 },
-  { x: 8240, y: GROUND - 120, w: 120, h: 120 },
-  { x: 8360, y: GROUND - 120, w: 140, h: 120 },
-];
+const CRATE_HOME = 7780;
+const hillCrate = { x: CRATE_HOME, y: GROUND - 60, w: 56, h: 60, vy: 0, roll: 0 };
 const checkpoints = [
   { x: 60, y: GROUND }, { x: 1060, y: GROUND }, { x: 1760, y: GROUND },
   { x: 1950, y: GROUND - 120 }, { x: 2660, y: GROUND }, { x: 3500, y: GROUND },
@@ -185,7 +257,11 @@ const checkpoints = [
   { x: 13830, y: GROUND - 60 },
   { x: 14150, y: GROUND - 120 },
   { x: 14470, y: GROUND - 180 },
-  { x: 14960, y: GROUND },
+  { x: 14930, y: GROUND },
+  { x: 15930, y: GROUND },
+  { x: 16640, y: GROUND },
+  { x: 17300, y: GROUND - 250 },
+  { x: 17720, y: GROUND },
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
@@ -200,12 +276,16 @@ const hints = [
   { x: 11560, y: 150, t: 'the old bridge sinks and rises — wait for it' },
   { x: 12420, y: 150, t: 'the apple belongs in the nest' },
   { x: 13560, y: 130, t: 'pumpkins tumble from the hilltop — hide behind the stumps' },
+  { x: 14990, y: 130, t: 'three treasures, three glowing sockets — the old arch remembers' },
+  { x: 15100, y: 155, t: 'if something gets stuck, press R', small: true },
+  { x: 15990, y: 130, t: 'light all four lanterns — each one wakes its neighbours' },
+  { x: 16000, y: 155, t: 'jump onto a lantern to touch it', small: true },
+  { x: 16700, y: 130, t: 'one crate will never reach the top of that cliff' },
 ];
 function gateRect() { return { x: gate.x, y: GROUND - gate.h - gate.open * gate.h, w: gate.w, h: gate.h }; }
 const solidList = () => {
   const base = gate.open < 1 ? [...solids, gateRect(), ...movingPlatforms] : [...solids, ...movingPlatforms];
-  const withHill = hillGate.open > 0.05 ? [...base, ...hillSteps.map(s => ({ ...s, y: GROUND - s.h + (1 - hillGate.open) * s.h }))] : base;
-  return [...withHill, ...newSectionSolids()];
+  return [...base, ...newSectionSolids()];
 };
 
 const pumpkin = { x: PUMPKIN_HOME, y: GROUND - 44, w: 48, h: 44, vy: 0, roll: 0 };
@@ -314,6 +394,7 @@ function update(dt) {
   }
   fade = Math.max(0, fade - dt * 1.6);
   updatePlayer(dt);
+  updateHair(dt);
 }
 
 function updatePlayer(dt) {
@@ -351,29 +432,19 @@ function updatePlayer(dt) {
   p.pushing = false;
   if (dx !== 0) {
     p.x += dx;
-    for (const s of list) if (overlap(p, s)) { p.x = dx > 0 ? s.x - p.w : s.x + s.w; p.vx = 0; }
-    if (overlap(p, pumpkin)) {
-      const push = dx > 0 ? p.x + p.w - pumpkin.x : p.x - (pumpkin.x + pumpkin.w);
-      const before = pumpkin.x;
-      moveBox(pumpkin, push, 0, list);
-      if (overlap(p, pumpkin)) p.x = dx > 0 ? pumpkin.x - p.w : pumpkin.x + pumpkin.w;
-      if (pumpkin.x !== before && p.onGround) { p.pushing = true; pumpkin.roll += pumpkin.x - before; }
+    for (const s of list) if (overlap(p, s)) {
+      if (s.step && p.y + p.h - s.y <= 9) { p.y = s.y - p.h; continue; }   // walk up the arch's curve
+      p.x = dx > 0 ? s.x - p.w : s.x + s.w; p.vx = 0;
     }
-    if (overlap(p, hillCrate)) {
-      const push = dx > 0 ? p.x + p.w - hillCrate.x : p.x - (hillCrate.x + hillCrate.w);
-      const before = hillCrate.x;
-      moveBox(hillCrate, push, 0, list);
-      if (overlap(p, hillCrate)) p.x = dx > 0 ? hillCrate.x - p.w : hillCrate.x + hillCrate.w;
-      if (hillCrate.x !== before && p.onGround) { p.pushing = true; hillCrate.roll += hillCrate.x - before; }
-    }
-    if (overlap(p, apple)) {
-      const before = apple.x;
-      if (!apple.latched) {
-        const push = dx > 0 ? p.x + p.w - apple.x : p.x - (apple.x + apple.w);
-        moveBox(apple, push, 0, list);
-      }
-      if (overlap(p, apple)) p.x = dx > 0 ? apple.x - p.w : apple.x + apple.w;
-      if (apple.x !== before && p.onGround) { p.pushing = true; apple.roll += apple.x - before; }
+    for (const { b, blockers, locked } of pushables(list)) {
+      if (!overlap(p, b)) continue;
+      const before = b.x;
+      if (!locked) moveBox(b, dx > 0 ? p.x + p.w - b.x : p.x - (b.x + b.w), 0, blockers);
+      if (overlap(p, b)) p.x = dx > 0 ? b.x - p.w : b.x + b.w;
+      if (b.x !== before && p.onGround) { p.pushing = true; b.roll += b.x - before; }
+      const moved = b.x - before;
+      if (moved && yardCrates.includes(b)) for (const r of yardCrates)
+        if (r !== b && Math.abs(r.y + r.h - b.y) < 1.5 && r.x < b.x - moved + b.w && r.x + r.w > b.x - moved) moveBox(r, moved, 0, list);
     }
   }
 
@@ -382,7 +453,7 @@ function updatePlayer(dt) {
   p.onGround = false;
   const dy = p.vy * dt;
   p.y += dy;
-  for (const s of [...list, pumpkin, apple]) {
+  for (const s of [...list, pumpkin, apple, hillCrate, ...archItems, ...yardCrates]) {
     if (overlap(p, s)) {
       if (dy > 0) { p.y = s.y - p.h; p.onGround = true; } else p.y = s.y + s.h;
       p.vy = 0;
@@ -407,7 +478,7 @@ function updatePlayer(dt) {
   // hazards
   const b = brambles;
   if (p.x + p.w > b.x + 6 && p.x < b.x + b.w - 6 && p.y + p.h > b.y + 6) killPlayer(true);
-  if (p.x + p.w > lateBramble.x && p.x < lateBramble.x + lateBramble.w && p.y + p.h > lateBramble.y) killPlayer(true);
+  if (p.x + p.w > lateBramble.x + 6 && p.x < lateBramble.x + lateBramble.w - 6 && p.y + p.h > lateBramble.y + 6) killPlayer(true);
   for (const pad of bouncePads) {
     if (p.vy >= 0 && p.x + p.w > pad.x && p.x < pad.x + pad.w && p.y + p.h >= pad.y && p.y + p.h <= pad.y + 12) {
       p.vy = -820; p.onGround = false; leafBurst(p.x + p.w / 2, pad.y, 18, false); crunch(0.18);
@@ -457,9 +528,20 @@ function updateCrows(dt) {
 }
 
 function updateMovingPlatforms(dt) {
+  const p = player;
   for (const platform of movingPlatforms) {
-    platform.x = platform.baseX + Math.sin(time * 0.8 + platform.phase) * platform.ampX;
-    platform.y = platform.baseY + Math.sin(time * 1.1 + platform.phase) * platform.ampY;
+    const nx = platform.baseX + Math.sin(time * 0.8 + platform.phase) * platform.ampX;
+    const ny = platform.baseY + Math.sin(time * 1.1 + platform.phase) * platform.ampY;
+    const riding = !p.dead && p.vy >= 0 && p.x + p.w > platform.x && p.x < platform.x + platform.w &&
+      Math.abs(p.y + p.h - platform.y) < 4;
+    const dx = nx - platform.x, dy = ny - platform.y;
+    platform.x = nx; platform.y = ny;
+    if (riding) {
+      p.y = platform.y - p.h;              // stay glued to the top, up or down
+      p.x += dx;
+      for (const s of solids) if (!s.wall && overlap(p, s)) p.x -= dx;
+      p.onGround = true; p.vy = 0;
+    }
   }
 }
 
@@ -469,10 +551,7 @@ function updateHillPuzzle(dt) {
     if (hillCrate.vy > 300) crunch(0.2);
     hillCrate.vy = 0;
   }
-  const center = hillCrate.x + hillCrate.w / 2;
-  const pressed = hillCrate.y + hillCrate.h >= GROUND - 1 && center > hillPlate.x && center < hillPlate.x + hillPlate.w;
-  hillPlate.press = approach(hillPlate.press, pressed ? 1 : 0, dt * 6);
-  if (pressed) hillGate.open = Math.min(1, hillGate.open + dt * 0.8);
+  if (hillCrate.y > H + 80) Object.assign(hillCrate, { x: CRATE_HOME, y: GROUND - hillCrate.h, vy: 0 });
 }
 
 // ---------- particles ----------
@@ -826,12 +905,14 @@ function drawWindStreaks() {
 function drawGrass(x0, x1) {
   ctx.strokeStyle = '#5a2818'; ctx.lineWidth = 1.4; ctx.beginPath();
   for (const s of solids) {
-    if (s.wall) continue;
-    const end = Math.min(s.x + s.w, x1);
-    for (let x = s.x + Math.max(0, Math.ceil((x0 - s.x) / 3) * 3); x < end; x += 3) {
-      const h = 2 + hash(x) * 8;
+    if (s.wall || s.stump || s.x > x1 || s.x + s.w < x0) continue;
+    const [rl, rr] = cornerRadii(s);
+    const end = Math.min(s.x + s.w - 2, x1);
+    for (let x = s.x + 2 + Math.max(0, Math.ceil((x0 - s.x) / 3) * 3); x < end; x += 3) {
+      const base = surfaceY(s, x, rl, rr), drop = base - s.y;
+      const h = (2 + hash(x) * 8) * (1 - drop / (CORNER_R * 1.6));   // shorter tufts as the edge curves away
       const lean = (hash(x + 0.5) - 0.5) * 5 + (0.15 + gust) * 3 * Math.sin(time * 3 + x * 0.05);
-      ctx.moveTo(x, s.y + 1); ctx.lineTo(x + lean, s.y - h);
+      ctx.moveTo(x, base + 1.5); ctx.lineTo(x + lean, base - h);
     }
   }
   ctx.stroke();
@@ -966,6 +1047,7 @@ function drawFire() {
 function drawPlayer() {
   const p = player;
   if (p.hidden) return;
+  drawHairBack();
   const cx = p.x + p.w / 2, by = p.y + p.h;
   const moving = p.onGround && Math.abs(p.vx) > 20;
   const ph = p.walk;
@@ -996,16 +1078,7 @@ function drawPlayer() {
   ctx.rotate((Math.abs(p.vx) / RUN) * 0.07 + (p.pushing ? 0.2 : 0));
   ctx.translate(0, 16);
 
-  // long flowing hair behind the body (sways with movement)
   const flutter = Math.sin(time * 6) * 1.2 + (Math.abs(p.vx) / RUN) * 3;
-  const sway = Math.sin(time * 4.5) * 0.8;
-  ctx.fillStyle = INK;
-  ctx.beginPath(); ctx.moveTo(2, -49);
-  ctx.quadraticCurveTo(-6, -50, -8, -44);
-  ctx.quadraticCurveTo(-10.5, -37, -11 - flutter * 0.8, -29 + sway);
-  ctx.quadraticCurveTo(-12.5 - flutter, -24 + sway, -10 - flutter * 1.2, -21 + sway);
-  ctx.quadraticCurveTo(-7, -26, -5, -33);
-  ctx.lineTo(-3, -41); ctx.closePath(); ctx.fill();
 
   // back arm (behind the body), swings opposite the legs
   const swing = moving ? Math.sin(ph) * 0.5 : (!p.onGround ? -0.6 : Math.sin(time * 2) * 0.05);
@@ -1073,17 +1146,11 @@ function drawPlayer() {
   ctx.quadraticCurveTo(-8.6, -42, -5, -37.2);          // back of head
   ctx.lineTo(-2.6, -33); ctx.closePath(); ctx.fill();
 
-  // small bow at the back of the hair
-  ctx.fillStyle = PLAYER_RIM;
-  ctx.beginPath(); ctx.ellipse(-8.6, -44.6, 1.9, 1.1, -0.7, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-7, -42.6, 1.9, 1.1, 0.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#a85a32';
-  ctx.beginPath(); ctx.arc(-7.8, -43.6, 0.8, 0, Math.PI * 2); ctx.fill();
-
   // single soft eye in profile
   ctx.fillStyle = '#f2c76f';
   ctx.beginPath(); ctx.arc(3.6, -43, 0.85, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
+  drawHairFront();
 }
 function drawBursts() {
   for (const b of bursts) {
@@ -1107,16 +1174,100 @@ function drawGlow() {
   ctx.restore();
 }
 // rounded top corners, except where a neighbouring block continues at the same height or higher
-function softBlock(s) {
-  const R = 16;
-  const joined = side => solids.some(o => o !== s && !o.wall && o.y <= s.y &&
+const CORNER_R = 16;
+function cornerRadii(s) {
+  const joined = side => solids.some(o => o !== s && !o.wall && !o.stump && o.y <= s.y &&
     (side < 0 ? Math.abs(o.x + o.w - s.x) < 1 : Math.abs(o.x - (s.x + s.w)) < 1));
-  const rl = joined(-1) ? 0 : R, rr = joined(1) ? 0 : R;
+  return [joined(-1) ? 0 : CORNER_R, joined(1) ? 0 : CORNER_R];
+}
+// the top surface height at x, following the rounded corners (so grass sits on the curve)
+function surfaceY(s, x, rl, rr) {
+  const dl = x - s.x, dr = s.x + s.w - x;
+  if (rl && dl < rl) { const t = Math.sqrt(Math.max(0, dl) / rl); return s.y + rl * (1 - t) * (1 - t); }
+  if (rr && dr < rr) { const t = Math.sqrt(Math.max(0, dr) / rr); return s.y + rr * (1 - t) * (1 - t); }
+  return s.y;
+}
+// earthy, uneven cliff side instead of a flat wall
+const cliffWobble = (x, y) => (hash(x * 0.37 + y * 0.113) - 0.5) * 6 + Math.sin(y * 0.07 + x) * 4 + Math.sin(y * 0.23 + x * 2) * 2;
+function softBlock(s) {
+  const [rl, rr] = cornerRadii(s);
+  const bottom = Math.min(s.y + s.h, H + 10);
   ctx.beginPath();
-  ctx.moveTo(s.x, s.y + s.h);
-  ctx.lineTo(s.x, s.y + rl); ctx.quadraticCurveTo(s.x, s.y, s.x + rl, s.y);
+  if (rl) {
+    ctx.moveTo(s.x + cliffWobble(s.x, bottom), bottom);
+    for (let y = bottom - 10; y > s.y + rl; y -= 10) ctx.lineTo(s.x + cliffWobble(s.x, y), y);
+    ctx.lineTo(s.x, s.y + rl);
+  } else { ctx.moveTo(s.x, bottom); ctx.lineTo(s.x, s.y); }
+  ctx.quadraticCurveTo(s.x, s.y, s.x + rl, s.y);
   ctx.lineTo(s.x + s.w - rr, s.y); ctx.quadraticCurveTo(s.x + s.w, s.y, s.x + s.w, s.y + rr);
-  ctx.lineTo(s.x + s.w, s.y + s.h); ctx.closePath(); ctx.fill();
+  if (rr) {
+    for (let y = s.y + rr + 10; y < bottom; y += 10) ctx.lineTo(s.x + s.w - cliffWobble(s.x + s.w, y), y);
+    ctx.lineTo(s.x + s.w - cliffWobble(s.x + s.w, bottom), bottom);
+  } else ctx.lineTo(s.x + s.w, bottom);
+  ctx.closePath(); ctx.fill();
+  if (rl) drawCliffRoots(s.x, s.y, bottom, -1);
+  if (rr) drawCliffRoots(s.x + s.w, s.y, bottom, 1);
+  ctx.fillStyle = INK;
+}
+// roots growing out of a cliff side (dir -1 = left side, +1 = right side), drooping and swaying
+function drawCliffRoots(x, top, bottom, dir) {
+  const seed = x * 0.71 + top * 0.13, maxY = Math.min(bottom, H + 10);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // faint roots running down inside the wall, giving it an earthy texture
+  ctx.strokeStyle = 'rgba(110,52,26,0.35)'; ctx.lineWidth = 1.2;
+  for (let k = 0; k < 3; k++) {
+    let px = x - dir * (5 + k * 7 + hash(seed + k) * 4), py = top + 10 + k * 6;
+    ctx.beginPath(); ctx.moveTo(px, py);
+    while (py < maxY) { py += 14; px += (hash(seed + py * 0.3 + k) - 0.5) * 6; ctx.lineTo(px, py); }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = INK;
+  // roots poking out of the side and drooping down (drawn twice: a warm rim, then the dark root on top)
+  const n = Math.max(3, Math.min(12, Math.floor((maxY - top) / 12)));
+  const roots = [];
+  for (let i = 0; i < n; i++) {
+    const r1 = hash(seed + i * 3.1), r2 = hash(seed + i * 7.7), r3 = hash(seed + i * 1.9);
+    const y0 = top + 4 + i * 12 + r1 * 8;
+    if (y0 > maxY - 4) break;
+    const big = i < 4 || r2 > 0.75;
+    const len = big ? 34 + r2 * 40 : 14 + r2 * 20;
+    const sway = Math.sin(time * 0.9 + i * 1.7 + seed) * (big ? 3 : 1.4);
+    let px = x - dir * 2, py = y0, a = 0.25 + r3 * 0.55;
+    const w0 = big ? 3.2 + r2 * 2.6 : 1.6 + r2 * 1.4, segs = 7, seg = len / segs;
+    const pts = [[px, py]];
+    for (let k = 0; k < segs; k++) {
+      px += dir * Math.cos(a) * seg + (k > 2 ? sway * 0.22 : 0); py += Math.sin(a) * seg;
+      pts.push([px, py]); a = Math.min(1.5, a + 0.2 + (r1 - 0.5) * 0.08);
+    }
+    roots.push({ pts, w0, r1, sway });
+  }
+  for (const pass of [0, 1]) {
+    ctx.strokeStyle = pass ? INK : 'rgba(170,90,45,0.55)';
+    for (const r of roots) {
+      for (let k = 0; k < r.pts.length - 1; k++) {
+        const [ax, ay] = r.pts[k], [bx, by] = r.pts[k + 1];
+        ctx.lineWidth = Math.max(0.7, r.w0 * (1 - k / r.pts.length)) + (pass ? 0 : 1.2);
+        ctx.beginPath(); ctx.moveTo(ax, ay - (pass ? 0 : 0.8)); ctx.lineTo(bx, by - (pass ? 0 : 0.8)); ctx.stroke();
+      }
+      if (pass && r.r1 > 0.35) {                         // a little side rootlet curling off
+        const [mx, my] = r.pts[3];
+        ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mx, my);
+        ctx.quadraticCurveTo(mx + dir * 6, my + 2, mx + dir * 9 + r.sway * 0.3, my + 9); ctx.stroke();
+      }
+    }
+  }
+  // a few long roots dangling from the top lip
+  for (let j = 0; j < 3; j++) {
+    const len = 30 + hash(seed + j * 11) * 44, sw = Math.sin(time * 1.1 + j * 2 + seed) * 3.5;
+    const hx = x + dir * (1 + j * 5);
+    for (const pass of [0, 1]) {
+      ctx.strokeStyle = pass ? INK : 'rgba(170,90,45,0.5)';
+      ctx.lineWidth = (2.2 - j * 0.5) + (pass ? 0 : 1.2);
+      ctx.beginPath(); ctx.moveTo(x - dir * 4, top + 2);
+      ctx.quadraticCurveTo(hx + dir * 6, top + len * 0.45, hx + dir * 3 + sw, top + len); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 function softRect(x, y, w, h, r) {
   r = Math.min(r, h / 2, w / 2);
@@ -1129,7 +1280,7 @@ function drawWorld() {
   ctx.fillStyle = INK;
   for (const lp of leafPits) ctx.fillRect(lp.x, GROUND + 18, lp.w, H);   // darkness under the leaves
   for (const s of solids) {
-    if (s.wall || s.x > x1 || s.x + s.w < x0) continue;
+    if (s.wall || s.stump || s.x > x1 || s.x + s.w < x0) continue;   // stumps draw themselves
     softBlock(s);
   }
   drawGrass(x0, x1);
@@ -1186,6 +1337,7 @@ function render(dt) {
     const near = p.x > WIND.x0 - 300 && p.x < WIND.x1 + 200 ? 1 : 0.45;
     windGain.gain.setTargetAtTime(0.08 + gust * 0.4 * near, actx.currentTime, 0.25);
     windFilter.frequency.setTargetAtTime(350 + gust * 900 * near, actx.currentTime, 0.25);
+    updateMusic();
   }
 
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -1221,7 +1373,7 @@ requestAnimationFrame(frame);
 function drawLeafClusters() {
   const colors = ['#c85d2d', '#d98a3d', '#9b3d22', '#e2a84f', '#783019'];
   const r = rng(912);
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 280; i++) {
     const sx = i * 67 + r() * 48;
     const y = GROUND - 5 - r() * (i % 5 === 0 ? 46 : 12);
     const size = 4 + r() * 7, rot = r() * 6, flip = r() > 0.5 ? 1 : -1;
@@ -1231,20 +1383,13 @@ function drawLeafClusters() {
 }
 
 // ---------- extended level features ----------
+// floating platforms only where there is a real hole underneath (the 7000-7500 chasm)
 const movingPlatforms = [
-  { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 190, h: 22, phase: 0, ampX: 35, ampY: 18 },
   { x: 7020, y: 310, baseX: 7020, baseY: 310, w: 180, h: 22, phase: 2.1, ampX: 30, ampY: 24 },
-  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase:   4.2, ampX: 35, ampY: 20 },
-  { x: 9700, y: 330, baseX: 9700, baseY: 330, w: 180, h: 22, phase: 1.2, ampX: 45, ampY: 28 },
-  { x: 10080, y: 280, baseX: 10080, baseY: 280, w: 190, h: 22, phase: 3.4, ampX: 40, ampY: 35 },
-  { x: 10620, y: 330, baseX: 10620, baseY: 330, w: 180, h: 22, phase: 5.1, ampX: 50, ampY: 25 },
+  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase: 4.2, ampX: 35, ampY: 20 },
 ];
-const bouncePads = [
-  { x: 6800, y: GROUND - 8, w:     55 },
-  { x: 7550, y: GROUND - 8, w: 55 },
-];
-const lateBramble = { x: 7900, y: GROUND - 52, w: 150, h: 52 };
-const finalPlate = { x: 8200, w: 90, press: 0 };
+const bouncePads = [];
+const lateBramble = { x: 7900, y: GROUND - 126, w: 120, h: 126 };   // too tall to jump from the ground: climb the box
 
 // ---------- test level (remove before final release) ----------
 const testLevel = [
@@ -1292,31 +1437,49 @@ const testLevel = [
   { x: 9900, y: GROUND, w: 200, h: 20 },
 ];
 function drawMovingPlatform(platform) {
-  const x = platform.x, y = platform.y, w = platform.w, h = platform.h;
-  ctx.save(); ctx.fillStyle = '#5a2a16'; ctx.beginPath();
-  ctx.moveTo(x + 4, y);
-  ctx.quadraticCurveTo(x + w * 0.12, y - 5, x + w * 0.28, y - 2);
-  ctx.quadraticCurveTo(x + w * 0.5, y - 6, x + w * 0.72, y - 2);
-  ctx.quadraticCurveTo(x + w * 0.88, y - 5, x + w - 4, y);
-  ctx.lineTo(x + w - 7, y + h); ctx.lineTo(x + 7, y + h); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#b86b32'; ctx.fillRect(x + 8, y - 2, w - 16, 4);
-  ctx.fillStyle = '#d08a43'; ctx.fillRect(x + 15, y - 3, w * 0.27, 2); ctx.fillRect(x + w * 0.56, y - 2, w * 0.18, 2);
-  ctx.strokeStyle = 'rgba(54,24,12,0.72)'; ctx.lineWidth = 1; ctx.beginPath();
-  ctx.moveTo(x + w * 0.18, y + 4); ctx.lineTo(x + w * 0.21, y + h - 4);
-  ctx.moveTo(x + w * 0.49, y + 2); ctx.lineTo(x + w * 0.46, y + h - 5);
-  ctx.moveTo(x + w * 0.78, y + 5); ctx.lineTo(x + w * 0.76, y + h - 3); ctx.stroke();
-  ctx.fillStyle = '#71803a'; ctx.beginPath(); ctx.moveTo(x + 2, y + 2);
-  ctx.quadraticCurveTo(x + 18, y - 8, x + 34, y + 1); ctx.quadraticCurveTo(x + 48, y - 7, x + 64, y + 2);
-  ctx.lineTo(x + 60, y + 7); ctx.lineTo(x + 6, y + 7); ctx.closePath(); ctx.fill();
-  for (let i = 0; i < 3; i++) {
-    const lx = x + w * (0.18 + i * 0.28);
-    drawLeaf(lx, y - 5 - (i % 2) * 3, 4, time * 0.7 + i, i % 2 ? -1 : 1, LEAF_COLORS[i % LEAF_COLORS.length]);
+  const x = platform.x, y = platform.y, w = platform.w, h = platform.h, seed = platform.baseX;
+  ctx.save();
+  // hanging roots (behind the slab)
+  ctx.strokeStyle = INK; ctx.lineCap = 'round';
+  for (let i = 0; i < 6; i++) {
+    const rx = x + w * (0.15 + i * 0.14) + (hash(seed + i) - 0.5) * 10, len = 8 + hash(seed + i * 3) * 18;
+    const sway = Math.sin(time * 1.6 + i * 1.3) * 2.5;
+    ctx.lineWidth = 1.2 + hash(seed + i * 7) * 1.2;
+    ctx.beginPath(); ctx.moveTo(rx, y + h - 4);
+    ctx.quadraticCurveTo(rx + sway * 0.5, y + h + len * 0.5, rx + sway, y + h + len); ctx.stroke();
   }
-  ctx.strokeStyle = '#7f8a3e'; ctx.lineWidth = 1.4; ctx.beginPath();
-  ctx.moveTo(x + 20, y + h - 2); ctx.quadraticCurveTo(x + 14, y + h + 12, x + 21, y + h + 19);
-  ctx.moveTo(x + w - 28, y + h - 2); ctx.quadraticCurveTo(x + w - 35, y + h + 9, x + w - 28, y + h + 15); ctx.stroke();
-  radial(x + w / 2, y + h * 0.35, 12, 'rgba(255,192,94,0.16)');
-  ctx.fillStyle = '#ffd47a'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.35, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  // soft floating earth slab, flat on top so your feet sit exactly on it
+  ctx.fillStyle = INK; ctx.beginPath();
+  ctx.moveTo(x + 8, y);
+  ctx.lineTo(x + w - 8, y);
+  ctx.quadraticCurveTo(x + w, y, x + w - 1, y + 7);
+  ctx.quadraticCurveTo(x + w * 0.8, y + h + 2, x + w * 0.55, y + h + 6);
+  ctx.quadraticCurveTo(x + w * 0.3, y + h + 4, x + w * 0.12, y + h - 2);
+  ctx.quadraticCurveTo(x, y + 9, x + 1, y + 7);
+  ctx.quadraticCurveTo(x, y, x + 8, y);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(160,80,40,0.35)';            // faint warm rim light on top
+  softRect(x + 8, y, w - 16, 1.6, 0.8);
+  // silhouette grass tufts along the top
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath();
+  for (let gx = x + 12; gx < x + w - 12; gx += 3) {
+    const k = gx - x, hgt = 2 + hash(seed + k) * 7 + (hash(seed + k * 0.37) > 0.85 ? 4 : 0);
+    const lean = (hash(seed + k + 0.5) - 0.5) * 4 + (0.15 + gust) * 2.5 * Math.sin(time * 3 + k * 0.08);
+    ctx.moveTo(gx, y + 1); ctx.quadraticCurveTo(gx + lean * 0.3, y - hgt * 0.6, gx + lean, y - hgt);
+  }
+  ctx.stroke();
+  // two little decorative mushrooms near the ends (you walk right past them)
+  for (const [fx, sc] of [[0.1, 1], [0.86, 0.8], [0.92, 0.6]]) {
+    const mx = x + w * fx, ms = 10 * sc;
+    ctx.fillStyle = INK;
+    ctx.fillRect(mx - ms * 0.12, y - ms * 0.75, ms * 0.24, ms * 0.8);
+    ctx.beginPath(); ctx.ellipse(mx, y - ms * 0.75, ms * 0.5, ms * 0.38, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(255,214,140,0.85)';
+    ctx.beginPath(); ctx.arc(mx - ms * 0.18, y - ms * 0.92, ms * 0.07 + 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + ms * 0.16, y - ms * 0.84, ms * 0.06 + 0.3, 0, Math.PI * 2); ctx.fill();
+    radial(mx, y - ms * 0.9, ms * 1.4, 'rgba(255,200,120,0.12)');
+  }
+  ctx.restore();
 }
 
 
@@ -1363,6 +1526,9 @@ let rollerTimer = 1.5;
 function newSectionSolids() {
   const list = bridge.map(b => ({ x: b.x, y: b.y, w: b.w, h: b.h }));
   if (appleStairs.open > 0.05) list.push(...stairRects());
+  list.push(...archSegments());
+  list.push(...lanternPosts());
+  if (vineGate.open < 0.98) list.push(vineGateRect());
   return list;
 }
 
@@ -1370,6 +1536,8 @@ function resetNewSections() {
   rollers.length = 0;
   rollerTimer = 1.5;
   if (!apple.latched) Object.assign(apple, { x: APPLE_HOME, y: GROUND - apple.h, vy: 0 });
+  for (const it of archItems) if (!it.placed) Object.assign(it, { x: it.home, y: GROUND - it.h, vy: 0 });
+  for (const c of yardCrates) Object.assign(c, { x: c.home, y: c.homeY, vy: 0 });
 }
 
 function updateNewSections(dt) {
@@ -1388,17 +1556,26 @@ function updateNewSections(dt) {
   apple.vy = Math.min(apple.vy + GRAV * dt, MAX_FALL);
   if (moveBox(apple, 0, apple.vy * dt, solidList())) { if (apple.vy > 300) crunch(0.2); apple.vy = 0; }
   if (apple.y > H + 80) Object.assign(apple, { x: APPLE_HOME, y: GROUND - apple.h, vy: 0 });
+  // the apple sits in the nest while it's there; push it out again and the toadstools sink away
   const ac = apple.x + apple.w / 2;
-  if (!apple.latched && apple.y + apple.h >= GROUND - 1 && ac > appleNest.x + 10 && ac < appleNest.x + appleNest.w - 10) {
-    apple.latched = true;
+  const inNest = apple.y + apple.h >= GROUND - 1 && ac > appleNest.x + 10 && ac < appleNest.x + appleNest.w - 10;
+  if (inNest && !apple.latched) {
+    apple.latched = true; apple.sticky = true;
     apple.x = appleNest.x + appleNest.w / 2 - apple.w / 2;
     leafBurst(ac, GROUND - 10, 30, false); rumble();
+  } else if (!inNest && apple.latched) {
+    apple.latched = false; crunch(0.3); rumble();
   }
+  releaseSticky(apple);
   appleNest.glow = approach(appleNest.glow, apple.latched ? 1 : 0, dt * 2);
-  if (apple.latched && appleStairs.open < 1) {
-    appleStairs.open = Math.min(1, appleStairs.open + dt * 0.7);
+  const stairsBefore = appleStairs.open;
+  appleStairs.open = approach(appleStairs.open, apple.latched ? 1 : 0, dt * 0.7);
+  if (appleStairs.open > stairsBefore)
     for (const r of stairRects()) if (overlap(p, r)) { p.y = r.y - p.h; p.vy = Math.min(p.vy, 0); }
-  }
+
+  updateArchPuzzle(dt);
+  updateLanternGlade(dt);
+  updateCrateYard(dt);
 
   // pumpkins tumble from the pile while the player is on the hill
   const onHill = p.x > 13350 && p.x < PUMPKIN_SPAWN.x - 10 && !p.dead && !ended;
@@ -1456,9 +1633,7 @@ function drawNewSections() {
   const x0 = camX - 100, x1 = camX + W + 100;
 
   // old crate puzzle near the hill: plate, crate and rising steps
-  if (hillPlate.x < x1 && hillSteps[3].x + hillSteps[3].w > x0) {
-    drawPressurePlate(hillPlate.x, hillPlate.w, hillPlate.press);
-    if (hillGate.open > 0.01) for (const st of hillSteps) drawStep(st.x, GROUND - st.h * hillGate.open, st.w, st.h * hillGate.open);
+  if (hillCrate.x - 60 < x1 && hillCrate.x + 60 > x0) {
     drawCrate(hillCrate);
   }
 
@@ -1469,14 +1644,6 @@ function drawNewSections() {
     g.addColorStop(0, 'rgba(230,130,70,0)'); g.addColorStop(0.12, 'rgba(220,120,62,0.55)');
     g.addColorStop(0.45, 'rgba(90,36,16,0.75)'); g.addColorStop(1, 'rgba(10,3,1,0.97)');
     ctx.fillStyle = g; ctx.fillRect(BRIDGE.x0, GROUND - 10, BRIDGE.x1 - BRIDGE.x0, H - GROUND + 10);
-    ctx.fillStyle = INK;                                   // cliff walls on each side
-    ctx.fillRect(BRIDGE.x0 - 2, GROUND, 8, H - GROUND); ctx.fillRect(BRIDGE.x1 - 6, GROUND, 8, H - GROUND);
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
-    for (const [ex, dir] of [[BRIDGE.x0, 1], [BRIDGE.x1, -1]]) for (let k = 0; k < 4; k++) {
-      const ry = GROUND + 12 + k * 17, len = 18 + hash(k + ex) * 26;
-      ctx.beginPath(); ctx.moveTo(ex, ry);
-      ctx.quadraticCurveTo(ex + dir * 8, ry + len * 0.5, ex + dir * (4 + Math.sin(time * 1.3 + k) * 3), ry + len); ctx.stroke();
-    }
     for (const px of [BRIDGE.x0 + 6, BRIDGE.x1 - 6]) {             // posts
       ctx.fillStyle = INK; softRect(px - 6, GROUND - 46, 12, 50, 4);
       ctx.fillStyle = '#a85a32'; softRect(px - 6, GROUND - 46, 12, 4, 2);
@@ -1495,9 +1662,13 @@ function drawNewSections() {
   // apple meadow
   if (appleNest.x - 200 < x1 && 13000 > x0) {
     drawNest();
-    if (appleStairs.open > 0.01) for (const r of stairRects()) drawStep(r.x, r.y, r.w, GROUND - r.y);
+    if (appleStairs.open > 0.01) stairRects().forEach((r, i) => drawToadstoolStep(r, i));
     drawApple();
   }
+
+  // treasure meadow and the arch bridge
+  if (14900 < x1 && ARCH.x1 + 60 > x0) drawArchSection();
+  if (15950 < x1 && 17300 > x0) { drawLanternGlade(); for (const c of yardCrates) drawCrate(c); }
 
   // pumpkin hill
   if (13500 < x1 && 15200 > x0) {
@@ -1512,19 +1683,6 @@ function drawNewSections() {
   }
 }
 
-function drawPressurePlate(x, w, press) {
-  const y = GROUND - 6 + press * 5;
-  ctx.fillStyle = '#2a140b'; softRect(x, y, w, 7, 3);
-  ctx.fillStyle = press > 0.5 ? '#e8a03a' : '#7a3516'; softRect(x + 4, y, w - 8, 2, 1);
-}
-
-function drawStep(x, y, w, h) {
-  if (h <= 0.5) return;
-  ctx.fillStyle = '#3e1c0f'; softRect(x + 1, y, w - 2, h + 6, 6);
-  ctx.fillStyle = '#8a4a28'; softRect(x + 4, y + 1, w - 8, 4, 2);
-  ctx.strokeStyle = 'rgba(20,8,4,0.5)'; ctx.lineWidth = 1;
-  ctx.beginPath(); for (let yy = y + 14; yy < y + h - 4; yy += 14) { ctx.moveTo(x + 6, yy); ctx.lineTo(x + w - 6, yy); } ctx.stroke();
-}
 
 function drawCrate(c) {
   ctx.save(); ctx.translate(c.x + c.w / 2, c.y + c.h / 2);
@@ -1572,40 +1730,185 @@ function drawNest() {
 
 function drawApple() {
   const a = apple, cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a.latched ? 0 : (a.roll / (a.w / 2)) * 0.25);
-  ctx.fillStyle = '#9b2a18';
+  const wob = a.latched ? 0 : Math.sin(time * 2.2) * 0.035;
+  ctx.save(); ctx.translate(cx, cy + a.h * 0.5);
+  ctx.rotate(a.latched ? 0 : (a.roll / (a.w / 2)) * 0.25 + Math.sin(time * 1.7) * 0.03);
+  ctx.scale(1 + wob, 1 - wob); ctx.translate(0, -a.h * 0.5);
+  const W2 = a.w / 2, H2 = a.h / 2;
+  const body = () => {                                  // a slightly lopsided, hand-drawn apple
+    ctx.beginPath();
+    ctx.moveTo(-1, -H2 * 0.66);
+    ctx.bezierCurveTo(W2 * 0.55, -H2 * 1.12, W2 * 1.22, -H2 * 0.45, W2 * 0.98, H2 * 0.28);
+    ctx.bezierCurveTo(W2 * 0.82, H2 * 0.92, W2 * 0.3, H2 * 1.02, 2, H2 * 0.86);
+    ctx.bezierCurveTo(-W2 * 0.3, H2 * 1.04, -W2 * 0.88, H2 * 0.86, -W2 * 1.0, H2 * 0.2);
+    ctx.bezierCurveTo(-W2 * 1.18, -H2 * 0.5, -W2 * 0.55, -H2 * 1.08, -1, -H2 * 0.66);
+    ctx.closePath();
+  };
+  body(); ctx.fillStyle = '#c4492a'; ctx.fill();
+  ctx.save(); body(); ctx.clip();                        // flat painted shadow crescent
+  ctx.fillStyle = '#8f2e16';
+  ctx.beginPath(); ctx.ellipse(W2 * 0.55, H2 * 0.4, W2 * 0.75, H2 * 0.95, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#d9662b';
+  ctx.beginPath(); ctx.ellipse(-W2 * 0.25, -H2 * 0.2, W2 * 0.5, H2 * 0.55, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; body(); ctx.stroke();
+  ctx.strokeStyle = '#f6cf78'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // painted highlight swoosh
+  ctx.beginPath(); ctx.arc(-W2 * 0.2, -H2 * 0.05, W2 * 0.55, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke();
+  ctx.fillStyle = '#f6cf78'; ctx.beginPath(); ctx.arc(-W2 * 0.68, H2 * 0.08, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 3;                // curly stem
+  ctx.beginPath(); ctx.moveTo(0, -H2 * 0.6);
+  ctx.bezierCurveTo(-2, -H2 * 0.95, 4, -H2 * 1.25, 8, -H2 * 1.12);
+  ctx.bezierCurveTo(11, -H2 * 1.0, 9, -H2 * 0.88, 6.5, -H2 * 0.98); ctx.stroke();
+  const flutter = Math.sin(time * 3) * 0.15;              // leaf with a vein, fluttering
+  ctx.save(); ctx.translate(2, -H2 * 0.92); ctx.rotate(-0.5 + flutter);
+  ctx.fillStyle = '#e8a03a'; ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -8, -17, -3); ctx.quadraticCurveTo(-8, 4, 0, 0); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-1, -0.5); ctx.quadraticCurveTo(-8, -3, -14, -2.6); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+  if (!a.latched) for (let i = 0; i < 3; i++) {           // little magic sparkles around it
+    const t = time * 1.3 + i * 2.1, k = (Math.sin(t * 1.7) + 1) / 2;
+    sparkle(cx + Math.cos(t) * (a.w * 0.72), cy - a.h * 0.25 + Math.sin(t * 1.3) * a.h * 0.45, 1.5 + k * 2.4, 0.25 + k * 0.6);
+  }
+}
+function sparkle(x, y, s, alpha) {
+  ctx.fillStyle = `rgba(255,236,180,${alpha})`;
   ctx.beginPath();
-  ctx.moveTo(0, -a.h * 0.36);
-  ctx.bezierCurveTo(a.w * 0.3, -a.h * 0.62, a.w * 0.62, -a.h * 0.22, a.w * 0.48, a.h * 0.14);
-  ctx.bezierCurveTo(a.w * 0.38, a.h * 0.46, a.w * 0.14, a.h * 0.52, 0, a.h * 0.44);
-  ctx.bezierCurveTo(-a.w * 0.14, a.h * 0.52, -a.w * 0.38, a.h * 0.46, -a.w * 0.48, a.h * 0.14);
-  ctx.bezierCurveTo(-a.w * 0.62, -a.h * 0.22, -a.w * 0.3, -a.h * 0.62, 0, -a.h * 0.36);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,190,120,0.35)';
-  ctx.beginPath(); ctx.ellipse(-a.w * 0.22, -a.h * 0.12, a.w * 0.09, a.h * 0.16, 0.4, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0, -a.h * 0.32); ctx.quadraticCurveTo(1, -a.h * 0.5, 4, -a.h * 0.6); ctx.stroke();
-  ctx.fillStyle = '#71803a';
-  ctx.beginPath(); ctx.moveTo(3, -a.h * 0.52);
-  ctx.quadraticCurveTo(10, -a.h * 0.72, 16, -a.h * 0.56); ctx.quadraticCurveTo(10, -a.h * 0.44, 3, -a.h * 0.52); ctx.fill();
+  ctx.moveTo(x, y - s * 2); ctx.quadraticCurveTo(x, y, x + s * 2, y);
+  ctx.quadraticCurveTo(x, y, x, y + s * 2); ctx.quadraticCurveTo(x, y, x - s * 2, y);
+  ctx.quadraticCurveTo(x, y, x, y - s * 2); ctx.fill();
+}
+
+// giant toadstools that grow out of the ground as the apple-stairs
+const TOAD_CAPS = ['#b8401f', '#d9662b', '#8f2e16', '#e8a03a'];
+function drawToadstoolStep(r, i) {
+  const h = GROUND - r.y;
+  if (h < 1) return;
+  const cx = r.x + r.w / 2, sway = Math.sin(time * 1.4 + i) * 0.6;
+  ctx.save();
+  // stem: a soft, slightly bulging curve, with a little frill under the cap
+  const sw = r.w * 0.38;
+  ctx.fillStyle = INK; ctx.beginPath();
+  ctx.moveTo(cx - sw * 0.62, GROUND + 2);
+  ctx.bezierCurveTo(cx - sw * 0.75, GROUND - h * 0.4, cx - sw * 0.35 + sway, r.y + 16, cx - sw * 0.42 + sway, r.y + 8);
+  ctx.lineTo(cx + sw * 0.42 + sway, r.y + 8);
+  ctx.bezierCurveTo(cx + sw * 0.35 + sway, r.y + 16, cx + sw * 0.75, GROUND - h * 0.4, cx + sw * 0.62, GROUND + 2);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,120,60,0.45)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(cx - sw * 0.5, GROUND - 4); ctx.quadraticCurveTo(cx - sw * 0.6, GROUND - h * 0.45, cx - sw * 0.3 + sway, r.y + 14); ctx.stroke();
+  if (h > 30) {
+    ctx.fillStyle = INK; ctx.beginPath();
+    ctx.ellipse(cx + sway, r.y + 17, sw * 0.62, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // cap: flat on top so feet sit right on it, rounded dome edges underneath
+  const x0 = r.x - 5, x1 = r.x + r.w + 5;
+  ctx.fillStyle = TOAD_CAPS[i % TOAD_CAPS.length]; ctx.strokeStyle = INK; ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x0 + 8, r.y);
+  ctx.lineTo(x1 - 8, r.y);
+  ctx.quadraticCurveTo(x1 + 2, r.y + 1, x1, r.y + 10);
+  ctx.quadraticCurveTo(cx, r.y + 17, x0, r.y + 10);
+  ctx.quadraticCurveTo(x0 - 2, r.y + 1, x0 + 8, r.y);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';                     // darker underside band
+  ctx.beginPath(); ctx.moveTo(x1 - 1, r.y + 8); ctx.quadraticCurveTo(cx, r.y + 15, x0 + 1, r.y + 8);
+  ctx.quadraticCurveTo(cx, r.y + 11, x1 - 1, r.y + 8); ctx.fill();
+  // glowing spots
+  for (let k = 0; k < 4; k++) {
+    const sx = x0 + 10 + k * ((x1 - x0 - 20) / 3) + (hash(i * 7 + k) - 0.5) * 6, sy = r.y + 4 + hash(i * 3 + k) * 3;
+    const pulse = 0.6 + Math.sin(time * 2 + k + i) * 0.25;
+    radial(sx, sy, 7, `rgba(255,220,150,${0.18 * pulse})`);
+    ctx.fillStyle = '#ffe6b0'; ctx.beginPath(); ctx.ellipse(sx, sy, 2.2 + (k % 2), 1.5 + (k % 2) * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 
+const MOSS = ['#3f4220', '#4b4e27', '#565a2c', '#44471f'];
 function drawStump(sd) {
-  const x = sd.x, y = sd.y, w = sd.w, h = sd.h;
+  const x = sd.x, y = sd.y, w = sd.w, h = sd.h, seed = sd.x * 0.37;
+  const r = k => hash(seed + k * 1.73);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // roots flaring unevenly into the ground
   ctx.fillStyle = '#3a1a0c';
-  ctx.beginPath(); ctx.moveTo(x - 8, y + h);
-  ctx.quadraticCurveTo(x - 1, y + h - 6, x + 2, y + 6);
-  ctx.quadraticCurveTo(x + w / 2, y - 3, x + w - 2, y + 6);
-  ctx.quadraticCurveTo(x + w + 1, y + h - 6, x + w + 8, y + h); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#b8743e';                                     // cut top with rings
-  ctx.beginPath(); ctx.ellipse(x + w / 2, y + 4, w / 2 - 1, 5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#7a4220'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.ellipse(x + w / 2, y + 4, w / 3.5, 3, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(x + w / 2, y + 4, w / 8, 1.3, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(160,90,50,0.6)'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(x + 8, y + 12); ctx.lineTo(x + 7, y + h - 6); ctx.moveTo(x + w - 10, y + 14); ctx.lineTo(x + w - 9, y + h - 8); ctx.stroke();
-  drawLeaf(x + w - 4, y + 1, 5, 0.4, 1, LEAF_COLORS[0]);
+  for (const [side, len, lift] of [[-1, 10 + r(1) * 8, 6 + r(2) * 6], [1, 6 + r(3) * 12, 4 + r(4) * 8], [-1, 4 + r(5) * 5, 14]]) {
+    const bx = side < 0 ? x + 4 : x + w - 4;
+    ctx.beginPath(); ctx.moveTo(bx, y + h - lift - 6);
+    ctx.quadraticCurveTo(bx + side * len * 0.5, y + h - lift * 0.4, bx + side * len, y + h + 1);
+    ctx.lineTo(bx - side * 6, y + h + 1); ctx.closePath(); ctx.fill();
+  }
+  // trunk with a broken, jagged top (no neat circles)
+  const top = [];
+  const n = 7;
+  for (let i = 0; i <= n; i++) {
+    const tx = x + 1 + (w - 2) * i / n;
+    let ty = y + 2 + r(10 + i) * 6;
+    if (i === 2 + Math.floor(r(30) * 3)) ty = y - 4 - r(31) * 5;      // one tall splinter
+    top.push([tx, ty]);
+  }
+  ctx.beginPath(); ctx.moveTo(x - 1, y + h);
+  ctx.quadraticCurveTo(x + 1, y + h * 0.55, top[0][0], top[0][1] + 3);
+  for (const [tx, ty] of top) ctx.lineTo(tx, ty);
+  ctx.quadraticCurveTo(x + w - 1, y + h * 0.55, x + w + 1, y + h); ctx.closePath(); ctx.fill();
+  // worn, uneven cut face: a partial warm sliver and a few broken ring fragments
+  ctx.fillStyle = 'rgba(184,116,62,0.55)';
+  ctx.beginPath(); ctx.moveTo(top[1][0], top[1][1] + 1.5);
+  for (let i = 2; i < n - 1; i++) ctx.lineTo(top[i][0], Math.max(top[i][1], y + 1) + 1.5);
+  ctx.lineTo(top[n - 2][0] - 2, y + 7); ctx.quadraticCurveTo(x + w * 0.45, y + 9 + r(40) * 2, top[1][0] + 2, y + 6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,44,20,0.7)'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.arc(x + w * (0.35 + r(41) * 0.2), y + 6, 4 + r(42) * 3, Math.PI * 1.05, Math.PI * (1.6 + r(43) * 0.3)); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + w * (0.5 + r(44) * 0.15), y + 6.5, 8 + r(45) * 3, Math.PI * 1.2, Math.PI * 1.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.62, y + 3); ctx.lineTo(x + w * 0.7, y + 8); ctx.lineTo(x + w * 0.66, y + 13); ctx.stroke();   // crack
+  // bark grooves
+  ctx.strokeStyle = 'rgba(150,82,44,0.4)'; ctx.lineWidth = 1.1;
+  for (let k = 0; k < 3; k++) {
+    const gx = x + 6 + k * (w - 12) / 2 + (r(50 + k) - 0.5) * 4;
+    ctx.beginPath(); ctx.moveTo(gx, y + 12 + r(53 + k) * 4);
+    ctx.quadraticCurveTo(gx + (r(56 + k) - 0.5) * 6, y + h * 0.6, gx + (r(59 + k) - 0.5) * 4, y + h - 3); ctx.stroke();
+  }
+  // a dark knot hole... with something inside that blinks now and then
+  const kx = x + w * (0.3 + r(60) * 0.35), ky = y + h * (0.52 + r(61) * 0.12);
+  ctx.fillStyle = '#140804'; ctx.beginPath(); ctx.ellipse(kx, ky, 5, 6.5, (r(62) - 0.5) * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(150,82,44,0.5)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(kx, ky, 6.5, 8, (r(62) - 0.5) * 0.5, 0, Math.PI * 2); ctx.stroke();
+  const cycle = (time * 0.35 + r(63) * 7) % 4;
+  const open = cycle < 3.7 ? Math.min(1, cycle * 2) : 0;         // eyes appear, stay a while, then blink shut
+  if (open > 0) {
+    const ex = Math.sin(time * 0.6 + seed) * 0.8;
+    radial(kx, ky, 8, `rgba(255,210,120,${0.2 * open})`);
+    ctx.fillStyle = `rgba(255,226,150,${0.9 * open})`;
+    ctx.beginPath(); ctx.ellipse(kx - 1.8 + ex, ky - 0.5, 1, open * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(kx + 1.8 + ex, ky - 0.5, 1, open * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // moss draped over one side of the top and dripping down
+  const mossSide = r(70) < 0.5 ? 0 : 1;
+  const mx0 = mossSide ? x + w * 0.35 : x - 2, mx1 = mossSide ? x + w + 2 : x + w * 0.65;
+  for (let k = 0; k < 60; k++) {                                 // small soft tufts hugging the bark
+    const t = r(80 + k);
+    const mx = Math.max(x + 1.5, Math.min(x + w - 1.5, mx0 + (mx1 - mx0) * t));
+    const edge = mossSide ? (mx > x + w - 9) : (mx < x + 9);
+    const depth = edge ? r(110 + k) * h * 0.6 : r(110 + k) * r(115 + k) * 9;   // drips further down the side
+    ctx.fillStyle = MOSS[k % MOSS.length];
+    ctx.beginPath(); ctx.arc(mx, y + 3 + depth, 0.9 + r(140 + k) * 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = MOSS[0]; ctx.lineWidth = 0.9;                  // a few hanging moss strands
+  for (let k = 0; k < 3; k++) {
+    const hx = mossSide ? x + w - 1 + k * 1.5 : x + 1 - k * 1.5, hy = y + 4 + k * 5, len = 8 + r(170 + k) * 10;
+    const sw = Math.sin(time * 1.3 + k + seed) * 1.5;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(hx + sw, hy + len * 0.6, hx + sw * 1.5, hy + len); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(170,175,110,0.3)';                          // dewy highlights on the moss
+  for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(mx0 + (mx1 - mx0) * r(190 + k), y + 1 + r(195 + k) * 3, 0.9, 0, Math.PI * 2); ctx.fill(); }
+  // two tiny glowing mushrooms at the base, and a mote drifting up
+  for (let k = 0; k < 2; k++) {
+    const gx = (k ? x + w + 3 : x - 3) + (r(200 + k) - 0.5) * 4, gy = y + h, ms = 3 + r(205 + k) * 2;
+    ctx.fillStyle = INK; ctx.fillRect(gx - 0.6, gy - ms, 1.2, ms);
+    ctx.fillStyle = '#ffd98f'; ctx.beginPath(); ctx.ellipse(gx, gy - ms, ms * 0.6, ms * 0.4, 0, Math.PI, 0); ctx.fill();
+    radial(gx, gy - ms, 6, 'rgba(255,210,130,0.25)');
+  }
+  const mt = (time * 0.25 + r(210)) % 1;
+  ctx.fillStyle = `rgba(255,226,160,${(1 - mt) * 0.7})`;
+  ctx.beginPath(); ctx.arc(x + w * 0.5 + Math.sin(time + seed) * 6, y - mt * 40, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 
 function drawPumpkinShape(cx, by, s, rot, body, rib) {
@@ -1632,4 +1935,387 @@ function drawPumpkinPile(x, y) {
 function drawRoller(r) {
   const body = r.color < 0.5 ? '#d9662b' : '#e88a35';
   drawPumpkinShape(r.x + r.w / 2, r.y + r.h + 2, 0.78, r.roll / 16, body, '#9a3a14');
+}
+
+
+// ---------- semi-long bob with soft bangs ----------
+// Three short strand chains (front, middle, back) hang from the head and swing with verlet physics,
+// pulled gently back toward the bob's shape. They're drawn as one hair mass behind the head,
+// with the bangs and a few strand lines drawn on top.
+const PS = 1.85;   // must match the scale in drawPlayer
+const BOB_LEN = 1.18;
+const BOB_REST = (() => {
+  const back = [[-8.6, -47], [-10.2, -43], [-10.8, -39], [-10.6, -35], [-9.4, -32.6]];
+  const mid = [[-4, -49], [-5.6, -44], [-6.2, -39.5], [-6, -35], [-5.2, -32.4]];
+  const front = [[0.8, -48], [0, -44], [-0.5, -40], [-0.4, -36], [0.4, -33.4]];
+  const stretch = ch => ch.map(([x, y]) => [x, ch[0][1] + (y - ch[0][1]) * BOB_LEN]);
+  return [stretch(front), stretch(mid), stretch(back)];
+})();
+const hairChains = BOB_REST.map(rest => ({ rest, pts: null, prev: null }));
+
+function playerPoint(lx, ly) {
+  const p = player, cx = p.x + p.w / 2, by = p.y + p.h;
+  const moving = p.onGround && Math.abs(p.vx) > 20;
+  const bob = moving ? -Math.abs(Math.sin(p.walk)) * 1.5 : Math.sin(time * 2) * 0.4;
+  const lean = (Math.abs(p.vx) / RUN) * 0.07 + (p.pushing ? 0.2 : 0);
+  const y1 = ly + 16;
+  const rx = lx * Math.cos(lean) - y1 * Math.sin(lean);
+  const ry = lx * Math.sin(lean) + y1 * Math.cos(lean) - 16 + bob;
+  return [cx + p.face * PS * rx, by + PS * ry];
+}
+
+function updateHair(dt) {
+  const p = player;
+  const inWind = [WIND, WIND2, WIND3].some(z => p.x + p.w > z.x0 && p.x < z.x1);
+  const breeze = Math.sin(time * 1.3) * 420 + Math.sin(time * 2.7 + 1) * 180 + 60;
+  const ax = breeze + gust * (inWind ? 2600 : 380);
+  const moving = p.onGround && Math.abs(p.vx) > 20;
+  const stepBounce = moving ? Math.cos(p.walk * 2) * 900 : 0;
+  for (const ch of hairChains) {
+    const rest = ch.rest.map(([x, y]) => playerPoint(x, y)), n = rest.length;
+    if (!ch.pts || Math.hypot(ch.pts[0][0] - rest[0][0], ch.pts[0][1] - rest[0][1]) > 40) {
+      ch.pts = rest.map(q => [...q]); ch.prev = rest.map(q => [...q]);
+    }
+    ch.pts[0] = rest[0]; ch.prev[0] = rest[0];
+    for (let i = 1; i < n; i++) {
+      const q = ch.pts[i], o = ch.prev[i], f = i / (n - 1);
+      const vx = (q[0] - o[0]) * 0.985, vy = (q[1] - o[1]) * 0.985;
+      o[0] = q[0]; o[1] = q[1];
+      q[0] += vx + ax * f * 0.7 * dt * dt;
+      q[1] += vy + (900 + stepBounce * f) * dt * dt;
+      const k = 0.14 * Math.pow(1 - f, 1.5) + 0.02;     // holds the bob shape, ends swing freely
+      q[0] += (rest[i][0] - q[0]) * k; q[1] += (rest[i][1] - q[1]) * k;
+    }
+    for (let it = 0; it < 4; it++) for (let i = 1; i < n; i++) {
+      const a = ch.pts[i - 1], b = ch.pts[i];
+      const L = Math.hypot(rest[i][0] - rest[i - 1][0], rest[i][1] - rest[i - 1][1]);
+      const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, diff = (d - L) / d;
+      if (i === 1) { b[0] -= dx * diff; b[1] -= dy * diff; }
+      else { a[0] += dx * diff * 0.5; a[1] += dy * diff * 0.5; b[0] -= dx * diff * 0.5; b[1] -= dy * diff * 0.5; }
+    }
+  }
+}
+
+function drawHairBack() {
+  if (!hairChains[0].pts) updateHair(0);
+  const [fw, mid, bw] = hairChains.map(c => c.pts);
+  const cap = [[4.6, -49.8], [2, -52.4], [-2.4, -53.6], [-6.6, -52], [-9.4, -48.4]].map(([x, y]) => playerPoint(x, y));
+  const tipMid = mid[mid.length - 1], tipFront = fw[fw.length - 1];
+  ctx.save(); ctx.fillStyle = INK; ctx.beginPath();
+  ctx.moveTo(cap[0][0], cap[0][1]);
+  for (let i = 1; i < cap.length; i++) {
+    const a = cap[i - 1], b = cap[i];
+    ctx.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+  }
+  const last = cap[cap.length - 1]; ctx.lineTo(last[0], last[1]);
+  // down the back, puffing out a little for the bob's rounded volume
+  const backPts = bw.slice(1).map((q, i, arr) => [q[0] - player.face * (i < arr.length - 1 ? 1.4 : 0.4) * PS, q[1]]);
+  for (let i = 0; i < backPts.length; i++) {
+    const q = backPts[i], nxt = backPts[i + 1];
+    if (nxt) ctx.quadraticCurveTo(q[0], q[1], (q[0] + nxt[0]) / 2, (q[1] + nxt[1]) / 2); else ctx.lineTo(q[0], q[1]);
+  }
+  // soft ends that curve slightly under
+  ctx.quadraticCurveTo(tipMid[0] - player.face * 2, tipMid[1] + 3, tipMid[0], tipMid[1] + 1);
+  ctx.quadraticCurveTo((tipMid[0] + tipFront[0]) / 2, Math.max(tipMid[1], tipFront[1]) + 3, tipFront[0], tipFront[1]);
+  // up the front piece by the ear
+  for (let i = fw.length - 2; i >= 1; i--) {
+    const q = fw[i], nxt = fw[i - 1];
+    ctx.quadraticCurveTo(q[0], q[1], (q[0] + nxt[0]) / 2, (q[1] + nxt[1]) / 2);
+  }
+  ctx.lineTo(fw[0][0], fw[0][1]);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawHairFront() {
+  if (player.hidden) return;
+  const [, mid, bw] = hairChains.map(c => c.pts);
+  ctx.save();
+  // soft bangs over the forehead
+  const pts = [[-1, -52.4], [4.2, -51.8], [7.2, -49.2], [7.9, -46], [7.4, -44.4], [6.4, -45.4], [5.6, -44.6], [4.6, -46], [3.2, -45.6], [2.4, -47]].map(([x, y]) => playerPoint(x, y));
+  const sw = Math.sin(time * 2.2) * 0.6;
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] + (i > 2 && i < 8 ? sw * player.face : 0), pts[i][1]);
+  ctx.closePath(); ctx.fill();
+  // faint strand lines so the hair reads as hair against the dark head
+  ctx.strokeStyle = 'rgba(150,80,44,0.26)'; ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+  for (const [ch, lx, off] of [[mid, -4, 0], [bw, -7.6, 1.4]]) {
+    const top = playerPoint(lx, -50.6);
+    ctx.beginPath(); ctx.moveTo(top[0], top[1]);
+    for (let i = 1; i < ch.length - 1; i++) ctx.lineTo(ch[i][0] + player.face * off * 0.4, ch[i][1]);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+
+// =====================================================================
+// ---------- treasure meadow: push 3 treasures onto 3 sockets to grow an arch bridge ----------
+// =====================================================================
+const ARCH = { x0: 15500, x1: 15900, peak: 58, open: 0 };
+const ARCH_SEGS = 40;
+// treasures can't pass each other, so their order matters (push the pinecone before the toadstool).
+// Placed treasures can be pushed out again, and then the bridge crumbles away.
+const archItems = [
+  { kind: 'acorn', home: 15040, w: 38, h: 44 },
+  { kind: 'toadstool', home: 15120, w: 46, h: 44 },
+  { kind: 'pinecone', home: 15230, w: 36, h: 48 },
+].map(it => ({ ...it, x: it.home, y: GROUND - it.h, vy: 0, roll: 0, placed: false }));
+const archSockets = [
+  { kind: 'acorn', x: 14915, w: 80, glow: 0 },      // wide and against the cliff: it can't jam in the corner, and there's room to stand behind it
+  { kind: 'toadstool', x: 15240, w: 60, glow: 0 },
+  { kind: 'pinecone', x: 15425, w: 60, glow: 0 },
+];
+
+function pushables(list) {
+  return [
+    { b: pumpkin, blockers: list },
+    { b: hillCrate, blockers: [...list, lateBramble] },     // the spikes stop the box
+    { b: apple, blockers: list, locked: apple.sticky },
+    ...archItems.map(it => ({ b: it, blockers: [...list, ...archItems.filter(o => o !== it)], locked: it.sticky })),
+    ...yardCrates.map(c => ({ b: c, blockers: [...list, ...yardCrates.filter(o => o !== c)] })),
+  ];
+}
+
+const archTopY = x => GROUND - ARCH.peak * Math.sin(Math.PI * (x - ARCH.x0) / (ARCH.x1 - ARCH.x0));
+function archSegBuilt(i) { return ARCH.open >= Math.min(i, ARCH_SEGS - 1 - i) / ((ARCH_SEGS - 1) / 2); }
+function archSegments() {
+  if (ARCH.open <= 0) return [];
+  const out = [], w = (ARCH.x1 - ARCH.x0) / ARCH_SEGS;
+  for (let i = 0; i < ARCH_SEGS; i++) {
+    if (!archSegBuilt(i)) continue;
+    const x = ARCH.x0 + i * w;
+    out.push({ x, y: Math.round(archTopY(x + w / 2)), w, h: 24, step: true });
+  }
+  return out;
+}
+
+function updateArchPuzzle(dt) {
+  const list = solidList();
+  const wasComplete = archItems.every(o => o.placed);
+  for (const it of archItems) {
+    it.vy = Math.min(it.vy + GRAV * dt, MAX_FALL);
+    if (moveBox(it, 0, it.vy * dt, list)) { if (it.vy > 300) crunch(0.2); it.vy = 0; }
+    if (it.y > H + 80) Object.assign(it, { x: it.home, y: GROUND - it.h, vy: 0 });
+    const sock = archSockets.find(k => k.kind === it.kind), c = it.x + it.w / 2;
+    const inSocket = it.y + it.h >= GROUND - 1 && c > sock.x + 10 && c < sock.x + sock.w - 10;
+    if (inSocket && !it.placed) {
+      it.placed = true; it.sticky = true; it.x = sock.x + sock.w / 2 - it.w / 2;
+      leafBurst(sock.x + sock.w / 2, GROUND - 10, 24, false); crunch(0.3);
+    } else if (!inSocket && it.placed) {
+      it.placed = false; crunch(0.3);
+    }
+    releaseSticky(it);
+  }
+  const complete = archItems.every(o => o.placed);
+  if (complete !== wasComplete) rumble();
+  for (const k of archSockets) k.glow = approach(k.glow, archItems.some(it => it.placed && it.kind === k.kind) ? 1 : 0, dt * 2);
+  const before = ARCH.open;
+  ARCH.open = approach(ARCH.open, complete ? 1 : 0, dt * (complete ? 0.45 : 0.6));   // grows from the cliffs, crumbles from the middle
+  if (ARCH.open > before) {
+    const p = player;                                    // never grow a segment through the player
+    for (const sg of archSegments()) if (overlap(p, sg)) { p.y = sg.y - p.h; p.vy = Math.min(p.vy, 0); }
+  }
+}
+// A freshly placed object holds still until you let go of the arrow key, so you don't push it
+// straight back out by accident. After that, pushing it again moves it out of its spot.
+function releaseSticky(b) {
+  if (!b.sticky) return;
+  const p = player, towards = (b.x + b.w / 2) > (p.x + p.w / 2) ? holdR() : holdL();
+  const far = Math.abs((b.x + b.w / 2) - (p.x + p.w / 2)) > 90;
+  if (!towards || far || p.dead) b.sticky = false;
+}
+
+// ---- drawing ----
+function drawTreasure(kind, cx, by, alpha, rot) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, by); ctx.rotate(rot || 0);
+  ctx.strokeStyle = INK; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (kind === 'acorn') {
+    ctx.fillStyle = '#b8401f';                           // nut
+    ctx.beginPath(); ctx.moveTo(-15, -26);
+    ctx.bezierCurveTo(-17, -8, -8, -1, 0, 0); ctx.bezierCurveTo(8, -1, 17, -8, 15, -26); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#8f2e16'; ctx.beginPath(); ctx.moveTo(6, -24); ctx.bezierCurveTo(12, -10, 6, -4, 0, -1.5); ctx.bezierCurveTo(8, -8, 9, -16, 6, -24); ctx.fill();
+    ctx.strokeStyle = '#f6cf78'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-4, -14, 7, Math.PI * 0.95, Math.PI * 1.3); ctx.stroke();
+    ctx.fillStyle = INK; ctx.strokeStyle = INK; ctx.lineWidth = 2.4;    // cap
+    ctx.beginPath(); ctx.moveTo(-19, -25); ctx.quadraticCurveTo(-18, -40, 0, -41); ctx.quadraticCurveTo(18, -40, 19, -25);
+    ctx.quadraticCurveTo(0, -21, -19, -25); ctx.fill();
+    ctx.strokeStyle = '#7a4220'; ctx.lineWidth = 1;
+    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(k * 7 - 6, -25); ctx.lineTo(k * 7 + 6, -38); ctx.moveTo(k * 7 + 6, -25); ctx.lineTo(k * 7 - 6, -38); ctx.stroke(); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -40); ctx.bezierCurveTo(1, -46, 6, -48, 7, -44); ctx.stroke();
+  } else if (kind === 'toadstool') {
+    ctx.fillStyle = '#e9c58e';                            // stem
+    ctx.beginPath(); ctx.moveTo(-8, 0); ctx.bezierCurveTo(-10, -12, -6, -20, -7, -26); ctx.lineTo(7, -26); ctx.bezierCurveTo(6, -20, 10, -12, 8, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#d9662b';                            // cap
+    ctx.beginPath(); ctx.moveTo(-23, -24); ctx.bezierCurveTo(-22, -46, 22, -46, 23, -24); ctx.quadraticCurveTo(0, -19, -23, -24); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#8f2e16'; ctx.beginPath(); ctx.moveTo(10, -40); ctx.bezierCurveTo(20, -36, 22, -28, 21, -24.5); ctx.quadraticCurveTo(14, -27, 10, -40); ctx.fill();
+    ctx.fillStyle = '#ffe6b0';
+    for (const [sx, sy, r] of [[-12, -31, 3.4], [-1, -38, 2.6], [10, -32, 3], [3, -27.5, 2], [-17, -26.5, 1.8]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill(); }
+  } else {
+    ctx.fillStyle = '#5e2a14';                            // pinecone body
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-16, -6, -18, -34, 0, -46); ctx.bezierCurveTo(18, -34, 16, -6, 0, 0); ctx.fill(); ctx.stroke();
+    for (let row = 0; row < 6; row++) {                    // scales with warm tips
+      const y = -6 - row * 6.6, half = 12 * Math.sin(Math.PI * (row + 0.8) / 7.2);
+      for (let k = -1; k <= 1; k++) {
+        const sx = k * half * 0.62 + (row % 2 ? 3 : 0) * (k === 0 ? 1 : 0);
+        ctx.fillStyle = '#8f2e16'; ctx.beginPath(); ctx.ellipse(sx, y, 4.4, 3.4, 0, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = '#e8a03a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(sx, y, 4.4, 3.4, 0, 0.2, Math.PI - 0.2); ctx.stroke();
+      }
+    }
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -45); ctx.quadraticCurveTo(-2, -50, 2, -52); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawArchSection() {
+  // the chasm
+  const g = ctx.createLinearGradient(0, GROUND - 10, 0, H);
+  g.addColorStop(0, 'rgba(230,130,70,0)'); g.addColorStop(0.12, 'rgba(220,120,62,0.55)');
+  g.addColorStop(0.45, 'rgba(90,36,16,0.75)'); g.addColorStop(1, 'rgba(10,3,1,0.97)');
+  ctx.fillStyle = g; ctx.fillRect(ARCH.x0, GROUND - 10, ARCH.x1 - ARCH.x0, H - GROUND + 10);
+
+  // sockets: flat stones with the glowing outline of the treasure that belongs there
+  for (const k of archSockets) {
+    const cx = k.x + k.w / 2, pulse = 0.5 + Math.sin(time * 2.4 + cx) * 0.5;
+    radial(cx, GROUND - 14, 46 + k.glow * 30, `rgba(255,205,120,${0.14 + pulse * 0.1 * (1 - k.glow) + k.glow * 0.3})`);
+    ctx.fillStyle = INK; softRect(k.x, GROUND - 5, k.w, 9, 4);
+    ctx.fillStyle = k.glow > 0.5 ? '#ffd98f' : '#8a4a28'; softRect(k.x + 6, GROUND - 5, k.w - 12, 2, 1);
+    if (k.glow < 1) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      drawTreasure(k.kind, cx, GROUND - 4, (0.16 + pulse * 0.12) * (1 - k.glow), 0);
+      ctx.restore();
+    }
+  }
+  for (const it of archItems) {
+    const cx = it.x + it.w / 2;
+    if (!it.placed) sparkle(cx + Math.sin(time * 1.6 + cx) * it.w * 0.7, it.y - 4 + Math.cos(time * 1.2 + cx) * 8, 1.6, 0.5 + Math.sin(time * 3 + cx) * 0.3);
+    drawTreasure(it.kind, cx, it.y + it.h, 1, it.placed ? 0 : Math.sin(it.roll / 18) * 0.12);
+  }
+
+  // the arch bridge, growing from both cliffs to meet in the middle
+  if (ARCH.open <= 0) return;
+  const segW = (ARCH.x1 - ARCH.x0) / ARCH_SEGS;
+  const built = [];
+  for (let i = 0; i < ARCH_SEGS; i++) built.push(archSegBuilt(i));
+  const runs = [];                                        // contiguous built runs (left part, right part)
+  for (let i = 0; i < ARCH_SEGS; i++) if (built[i] && (i === 0 || !built[i - 1])) { let j = i; while (j + 1 < ARCH_SEGS && built[j + 1]) j++; runs.push([i, j]); }
+  const under = x => {                                     // the arch's curved underside
+    const u = (x - ARCH.x0) / (ARCH.x1 - ARCH.x0);
+    return GROUND + 70 - (70 + ARCH.peak - 20) * Math.sin(Math.PI * u);
+  };
+  for (const [i0, i1] of runs) {
+    const xa = ARCH.x0 + i0 * segW, xb = ARCH.x0 + (i1 + 1) * segW;
+    ctx.fillStyle = INK; ctx.beginPath();
+    ctx.moveTo(xa, archTopY(xa));
+    for (let x = xa; x <= xb; x += 5) ctx.lineTo(x, archTopY(x));
+    ctx.lineTo(xb, archTopY(xb));
+    for (let x = xb; x >= xa; x -= 5) ctx.lineTo(x, Math.max(archTopY(x) + 16, under(x)));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(217,148,69,0.6)'; ctx.lineWidth = 1.6;     // warm rim on the walking surface
+    ctx.beginPath(); for (let x = xa; x <= xb; x += 5) { if (x === xa) ctx.moveTo(x, archTopY(x) + 1); else ctx.lineTo(x, archTopY(x) + 1); } ctx.stroke();
+    // carved stones with glowing runes, and curly roots hanging underneath
+    for (let x = xa + 20; x < xb - 6; x += 40) {
+      const ty = archTopY(x) + 9, pulse = 0.55 + Math.sin(time * 2 + x * 0.05) * 0.3;
+      ctx.strokeStyle = 'rgba(120,60,30,0.6)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - 20, archTopY(x - 20) + 3); ctx.lineTo(x - 20, Math.max(archTopY(x - 20) + 16, under(x - 20)) - 2); ctx.stroke();
+      radial(x, ty, 9, `rgba(255,205,120,${0.35 * pulse})`);
+      ctx.fillStyle = `rgba(255,226,160,${0.6 + pulse * 0.3})`; ctx.beginPath(); ctx.arc(x, ty, 2, 0, Math.PI * 2); ctx.fill();
+      const ux = x + 4, uy = Math.max(archTopY(ux) + 16, under(ux)) - 1, sw = Math.sin(time * 1.2 + x) * 2;
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(ux, uy); ctx.bezierCurveTo(ux + 3, uy + 8, ux - 5 + sw, uy + 14, ux + sw, uy + 18);
+      ctx.bezierCurveTo(ux + 4 + sw, uy + 21, ux + 6 + sw, uy + 16, ux + 3 + sw, uy + 15); ctx.stroke();
+    }
+    // little leaves sprouting along the top
+    for (let x = xa + 8; x < xb; x += 23) drawLeaf(x, archTopY(x) - 2, 4, Math.sin(time + x) * 0.3 - 0.6, 1, LEAF_COLORS[Math.floor(hash(x) * 5)]);
+    // sparkles on the growing tips
+    if (ARCH.open < 1) for (const tipX of [xa, xb]) if (tipX > ARCH.x0 + 2 && tipX < ARCH.x1 - 2) sparkle(tipX, archTopY(tipX) - 6 + Math.sin(time * 9) * 3, 2.5, 0.9);
+  }
+}
+
+
+// =====================================================================
+// ---------- the lantern glade: a little "lights out" logic puzzle ----------
+// Landing on a lantern flips it AND its neighbours. All four must be lit to lower the vine wall.
+// From all-dark, the answer is to touch the two outer lanterns (the middle ones only make a mess).
+// =====================================================================
+const lanterns = [16080, 16190, 16300, 16410].map(x => ({ x, w: 26, h: 40, lit: false, glow: 0, bump: 0 }));
+const vineGate = { x: 16560, w: 34, h: 260, open: 0 };
+let lanternPrevGround = false;
+const lanternPosts = () => lanterns.map(l => ({ x: l.x, y: GROUND - l.h, w: l.w, h: l.h }));
+const vineGateRect = () => ({ x: vineGate.x, y: GROUND - vineGate.h * (1 - vineGate.open), w: vineGate.w, h: vineGate.h });
+
+function updateLanternGlade(dt) {
+  const p = player;
+  const landed = p.onGround && !lanternPrevGround;
+  lanternPrevGround = p.onGround;
+  if (landed && !p.dead) {
+    const i = lanterns.findIndex(l => Math.abs(p.y + p.h - (GROUND - l.h)) < 2 && p.x + p.w > l.x + 2 && p.x < l.x + l.w - 2);
+    if (i >= 0) {
+      for (const j of [i - 1, i, i + 1]) if (lanterns[j]) { lanterns[j].lit = !lanterns[j].lit; lanterns[j].bump = 1; }
+      noiseHit(lanterns[i].lit ? 1500 : 700, 6, 0.12, 0.5);   // a soft chime
+      if (lanterns.every(l => l.lit)) rumble();
+    }
+  }
+  for (const l of lanterns) { l.glow = approach(l.glow, l.lit ? 1 : 0, dt * 3); l.bump = Math.max(0, l.bump - dt * 3); }
+  const before = vineGate.open;
+  vineGate.open = approach(vineGate.open, lanterns.every(l => l.lit) ? 1 : 0, dt * 0.5);
+  if (vineGate.open < before && overlap(p, vineGateRect())) p.x = vineGate.x - p.w;   // a closing wall never traps you
+}
+
+function drawLanternGlade() {
+  // lanterns on little posts (you stand right on the lantern's cap)
+  for (const l of lanterns) {
+    const top = GROUND - l.h, cx = l.x + l.w / 2;
+    ctx.fillStyle = INK; softRect(cx - 4, top + 16, 8, l.h - 16, 2);
+    ctx.fillRect(cx - 9, GROUND - 4, 18, 4);
+    if (l.glow > 0.01) radial(cx, top + 9, 26 + l.glow * 26, `rgba(255,190,100,${0.35 * l.glow})`);
+    const sq = l.bump * 2;
+    ctx.fillStyle = l.glow > 0.05 ? `rgba(255,${200 + 30 * l.glow},${120 + 40 * l.glow},${0.25 + 0.75 * l.glow})` : '#2a140b';
+    softRect(l.x + 4, top + 3 + sq * 0.5, l.w - 8, 13 - sq * 0.5, 3);
+    ctx.fillStyle = INK; softRect(l.x, top, l.w, 4, 2);                 // cap you stand on
+    softRect(l.x + 3, top + 15, l.w - 6, 3, 1.5);
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(cx, top + 3); ctx.lineTo(cx, top + 16); ctx.stroke();
+    if (l.glow > 0.3) sparkle(cx + Math.sin(time * 2 + l.x) * 10, top - 8 - Math.abs(Math.sin(time * 1.3 + l.x)) * 10, 1.4, 0.6 * l.glow);
+  }
+  // the thorny vine wall, sinking into the ground when every lantern is lit
+  const r = vineGateRect();
+  if (vineGate.open < 0.99) {
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x - 30, r.y - 30, r.w + 60, GROUND - r.y + 30); ctx.clip();
+    ctx.strokeStyle = INK; ctx.lineCap = 'round';
+    for (let k = 0; k < 6; k++) {                        // twisted vines
+      ctx.lineWidth = 4 + (k % 3);
+      ctx.beginPath();
+      for (let y = GROUND; y >= r.y - 6; y -= 8) {
+        const x = r.x + r.w / 2 + Math.sin(y * 0.05 + k * 1.1) * (r.w * 0.45) + Math.sin(time * 0.8 + k) * 0.8;
+        if (y === GROUND) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.fillStyle = INK;                                 // thorns
+    for (let y = GROUND - 10; y > r.y; y -= 13) for (const side of [-1, 1]) {
+      const bx = r.x + r.w / 2 + side * (r.w * 0.42) + Math.sin(y * 0.05) * 4;
+      ctx.beginPath(); ctx.moveTo(bx, y - 3); ctx.lineTo(bx + side * 9, y - 6 + hash(y) * 4); ctx.lineTo(bx, y + 3); ctx.fill();
+    }
+    for (let y = GROUND - 30; y > r.y; y -= 37) drawLeaf(r.x + r.w / 2 + Math.sin(y) * 8, y, 5, Math.sin(time + y) * 0.4, 1, LEAF_COLORS[Math.floor(hash(y * 3) * 5)]);
+    ctx.restore();
+  }
+}
+
+// =====================================================================
+// ---------- the crate yard: stack two crates to climb the tall cliff ----------
+// Push the ground crate under the ledge's edge, climb up and push the ledge crate off onto it,
+// then duck under the ledge behind the stack and push the whole stack over to the cliff.
+// =====================================================================
+const yardCrates = [
+  { home: 16790, homeY: GROUND - 100 - 60 },            // sits on the floating ledge
+  { home: 17080, homeY: GROUND - 60 },                  // sits in the yard
+].map(c => ({ ...c, x: c.home, y: c.homeY, w: 56, h: 60, vy: 0, roll: 0 }));
+
+function updateCrateYard(dt) {
+  const list = solidList();
+  for (const c of yardCrates) {
+    c.vy = Math.min(c.vy + GRAV * dt, MAX_FALL);
+    if (moveBox(c, 0, c.vy * dt, [...list, ...yardCrates.filter(o => o !== c)])) { if (c.vy > 300) { crunch(0.25); thud(); } c.vy = 0; }
+    if (c.y > H + 80) Object.assign(c, { x: c.home, y: c.homeY, vy: 0 });
+  }
 }
