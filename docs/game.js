@@ -837,61 +837,19 @@ function drawPlayer() {
   ctx.beginPath(); ctx.ellipse(3, -32, 2.2, 2.8, 0.2, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(3, -32, 0.8, 0, Math.PI * 2); ctx.fill();
 
-  // clear one-sided storybook profile; the whole drawing mirrors with p.face
-  ctx.fillStyle = '#e2a06f';
-  ctx.beginPath(); ctx.moveTo(-5.8, -42.5);
-  ctx.quadraticCurveTo(-5.2, -48.5, 0.8, -48.2);
-  ctx.quadraticCurveTo(6.8, -47.8, 8.2, -42.2);
-  ctx.quadraticCurveTo(9.4, -39.2, 7.8, -36.5);
-  ctx.quadraticCurveTo(6.8, -34.8, 4.2, -34.2);
-  ctx.quadraticCurveTo(-1.8, -33.6, -5.2, -36.8);
-  ctx.quadraticCurveTo(-7.0, -39.2, -5.8, -42.5); ctx.fill();
-
-  ctx.fillStyle = '#7b3d2a';
-  ctx.beginPath(); ctx.moveTo(-6.8, -43.2);
-  ctx.quadraticCurveTo(-5.8, -50.2, 1.2, -50.0);
-  ctx.quadraticCurveTo(7.6, -49.2, 9.0, -43.0);
-  ctx.quadraticCurveTo(5.2, -45.2, 1.5, -43.8);
-  ctx.quadraticCurveTo(-2.4, -42.4, -6.8, -43.2); ctx.fill();
-
-  ctx.strokeStyle = '#70472f'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(2.8, -41.0); ctx.quadraticCurveTo(5.0, -42.2, 7.0, -40.8); ctx.stroke();
-  ctx.fillStyle = '#fff4cf';
-  ctx.beginPath(); ctx.ellipse(5.7, -39.5, 2.4, 1.45, 0.05, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#322018';
-  ctx.beginPath(); ctx.arc(6.6, -39.5, 0.92, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff7dc';
-  ctx.beginPath(); ctx.arc(5.9, -39.8, 0.16, 0, Math.PI * 2); ctx.fill();
-
-  ctx.strokeStyle = '#8f563d'; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(8.2, -38.8); ctx.quadraticCurveTo(9.8, -37.0, 8.0, -36.2); ctx.stroke();
-  ctx.fillStyle = 'rgba(208,105,75,0.34)';
-  ctx.beginPath(); ctx.ellipse(6.4, -35.1, 2.0, 0.9, 0.10, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#74382f'; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(4.2, -34.8); ctx.quadraticCurveTo(6.0, -33.5, 7.4, -34.5); ctx.stroke();
-  ctx.fillStyle = '#b56c4c';
-  ctx.beginPath(); ctx.arc(5.0, -35.6, 0.28, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(6.1, -35.3, 0.22, 0, Math.PI * 2); ctx.fill();
-
-  // quiet featureless profile: hood, cheek contour, and forward nose only
-  ctx.fillStyle = '#a94e32';
-  ctx.beginPath(); ctx.moveTo(-6.5, -43);
-  ctx.quadraticCurveTo(-5.8, -49.5, 0.8, -49);
-  ctx.quadraticCurveTo(7.4, -48.4, 8.8, -42);
-  ctx.quadraticCurveTo(9.8, -38.8, 7.8, -36.2);
-  ctx.lineTo(10.5, -35.8); ctx.lineTo(7.2, -34.2);
-  ctx.quadraticCurveTo(1.5, -33.2, -4.8, -36.8);
-  ctx.quadraticCurveTo(-7.4, -39.2, -6.5, -43); ctx.fill();
-
-  ctx.fillStyle = '#71301d';
-  ctx.beginPath(); ctx.moveTo(-6.8, -43);
-  ctx.quadraticCurveTo(-7.4, -49.8, -0.5, -51);
-  ctx.quadraticCurveTo(5.8, -51.8, 9.5, -46.5);
-  ctx.quadraticCurveTo(5.8, -47.8, 2.1, -46.2);
-  ctx.quadraticCurveTo(-3.2, -44.4, -6.8, -43); ctx.fill();
-
-  ctx.strokeStyle = '#d18b53'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(7.8, -36.2); ctx.lineTo(10.5, -35.8); ctx.lineTo(7.2, -34.2); ctx.stroke();
+  // quiet silhouette hood with soft forward-facing eye dots
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.arc(-1, -40, 8.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#442016';
+  ctx.beginPath(); ctx.ellipse(1.5, -40, 5.8, 6.2, 0.05, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = PLAYER_RIM; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(-6.2, -44); ctx.quadraticCurveTo(-2, -48, 4.6, -45.2); ctx.stroke();
+  ctx.fillStyle = '#f2c76f';
+  ctx.beginPath(); ctx.arc(3.5, -40.2, 0.9, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.8, -40.0, 0.9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff0bd';
+  ctx.beginPath(); ctx.arc(3.3, -40.5, 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.6, -40.3, 0.22, 0, Math.PI * 2); ctx.fill();
 }
 function drawBursts() {
   for (const b of bursts) {
@@ -1033,7 +991,7 @@ const movingPlatforms = [
   { x: 10620, y: 330, baseX: 10620, baseY: 330, w: 180, h: 22, phase: 5.1, ampX: 50, ampY: 25 },
 ];
 const bouncePads = [
-  { x: 6800, y: GROUND - 8, w: 55 },
+  { x: 6800, y: GROUND - 8, w:  55 },
   { x: 7550, y: GROUND - 8, w: 55 },
 ];
 const lateBramble = { x: 7900, y: GROUND - 52, w: 150, h: 52 };
