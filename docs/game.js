@@ -149,7 +149,9 @@ const checkpoints = [
   { x: 60, y: GROUND }, { x: 1060, y: GROUND }, { x: 1760, y: GROUND },
   { x: 1950, y: GROUND - 120 }, { x: 2660, y: GROUND }, { x: 3500, y: GROUND },
   { x: 4450, y: GROUND }, { x: 5200, y: GROUND - 70 }, { x: 5580, y: GROUND },
-  { x: 6250, y: GROUND - 100 }, { x: 7400, y: GROUND }, { x: 8200, y: GROUND },
+  { x: 6250, y: GROUND - 100 }, { x: 7480, y: GROUND },
+  { x: 7760, y: GROUND }, { x: 8170, y: GROUND },
+  { x: 8520, y: GROUND - 80 },
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
@@ -225,7 +227,12 @@ function killPlayer(burst) {
 }
 
 function respawn() {
-  const c = checkpoints[cpIndex];
+  let c = checkpoints[cpIndex];
+  const hasSupport = x => solids.some(s => !s.wall && x >= s.x && x <= s.x + s.w && c.y >= s.y - 5 && c.y <= s.y + 5);
+  if (!hasSupport(c.x)) {
+    cpIndex = Math.max(0, cpIndex - 1);
+    c = checkpoints[cpIndex];
+  }
   Object.assign(player, { x: c.x, y: c.y - player.h, vx: 0, vy: 0, dead: false, hidden: false, onGround: true, face: 1, jumpBuf: 0 });
   jumpQueued = false;
   for (const lp of leafPits) lp.broken = false;
@@ -331,7 +338,8 @@ function updatePlayer(dt) {
   // checkpoints
   for (let i = cpIndex + 1; i < checkpoints.length; i++) {
     const c = checkpoints[i];
-    if (p.onGround && p.x > c.x && Math.abs(p.y + p.h - c.y) < 4) cpIndex = i;
+    const supported = solids.some(s => !s.wall && p.x + p.w > s.x && p.x < s.x + s.w && Math.abs(p.y + p.h - s.y) < 4);
+    if (supported && p.onGround && p.x > c.x && Math.abs(p.y + p.h - c.y) < 4) cpIndex = i;
   }
 
   if (p.x > FIRE_X - 90) { ended = true; p.vx = 0; }
