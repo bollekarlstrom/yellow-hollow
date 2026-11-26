@@ -854,12 +854,12 @@ function drawPlayer() {
   ctx.quadraticCurveTo(5.2, -45.2, 1.5, -43.8);
   ctx.quadraticCurveTo(-2.4, -42.4, -6.8, -43.2); ctx.fill();
 
-  ctx.strokeStyle = '#70472f'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+  ctx.strokeStyle = '#70472f'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(2.8, -41.0); ctx.quadraticCurveTo(5.0, -42.2, 7.0, -40.8); ctx.stroke();
   ctx.fillStyle = '#fff4cf';
-  ctx.beginPath(); ctx.ellipse(5.7, -39.5, 1.7, 1.05, 0.05, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5.7, -39.5, 2.4, 1.45, 0.05, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#322018';
-  ctx.beginPath(); ctx.arc(6.2, -39.5, 0.68, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.6, -39.5, 0.92, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#fff7dc';
   ctx.beginPath(); ctx.arc(5.9, -39.8, 0.16, 0, Math.PI * 2); ctx.fill();
 
