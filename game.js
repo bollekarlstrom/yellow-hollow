@@ -567,12 +567,12 @@ vignette.width = W; vignette.height = H;
 {
   const g = vignette.getContext('2d');
   const gr = g.createRadialGradient(W / 2, H * 0.55, H * 0.35, W / 2, H * 0.55, W * 0.75);
-  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(48,21,10,0.48)');
+  gr.addColorStop(0, 'rgba(255,180,90,0.05)'); gr.addColorStop(1, 'rgba(55,25,18,0.34)');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
 }
 const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-skyGrad.addColorStop(0, '#51304b'); skyGrad.addColorStop(0.45, '#9b4b2b');
-skyGrad.addColorStop(0.72, '#e09a48'); skyGrad.addColorStop(1, '#f6c76f');
+skyGrad.addColorStop(0, '#6a4560'); skyGrad.addColorStop(0.45, '#ad5734');
+skyGrad.addColorStop(0.72, '#e8a953'); skyGrad.addColorStop(1, '#f7d78d');
 
 // ---------- rendering ----------
 let camX = 0, prevCamX = 0, snapCamera = true;
@@ -646,7 +646,7 @@ function drawWindStreaks() {
 }
 
 function drawGrass(x0, x1) {
-  ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.beginPath();
+  ctx.strokeStyle = '#5a2818'; ctx.lineWidth = 1.4; ctx.beginPath();
   for (const s of solids) {
     if (s.wall) continue;
     const end = Math.min(s.x + s.w, x1);
@@ -837,6 +837,14 @@ function drawPlayer() {
   ctx.beginPath(); ctx.ellipse(3, -32, 2.2, 2.8, 0.2, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(3, -32, 0.8, 0, Math.PI * 2); ctx.fill();
 
+  ctx.strokeStyle = '#d18b53'; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(-3, -30); ctx.quadraticCurveTo(-8, -27, -9 - flutter * 0.4, -20); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-7, -26); ctx.quadraticCurveTo(-11 - flutter * 0.3, -22, -10, -17); ctx.stroke();
+  ctx.fillStyle = PLAYER_RIM;
+  ctx.beginPath(); ctx.ellipse(3, -32, 2.2, 2.8, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(3, -32, 0.8, 0, Math.PI * 2); ctx.fill();
+
   // quiet silhouette hood with soft forward-facing eye dots
   ctx.fillStyle = INK;
   ctx.beginPath(); ctx.arc(-1, -40, 8.2, 0, Math.PI * 2); ctx.fill();
@@ -941,7 +949,7 @@ function render(dt) {
   drawSky();
   drawLayer(layers[0]); fogBand(0.10);
   drawLayer(layers[1]); fogBand(0.12);
-  drawLayer(layers[2]); drawPuffs();
+  drawLayer(layers[2]); drawPuffs(); drawFireflies();
   drawLayer(layers[3]);
   drawHints();
   drawLeaves(false);
@@ -985,13 +993,13 @@ function drawLeafClusters() {
 const movingPlatforms = [
   { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 190, h: 22, phase: 0, ampX: 35, ampY: 18 },
   { x: 7020, y: 310, baseX: 7020, baseY: 310, w: 180, h: 22, phase: 2.1, ampX: 30, ampY: 24 },
-  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase: 4.2, ampX: 35, ampY: 20 },
+  { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase:  4.2, ampX: 35, ampY: 20 },
   { x: 9700, y: 330, baseX: 9700, baseY: 330, w: 180, h: 22, phase: 1.2, ampX: 45, ampY: 28 },
   { x: 10080, y: 280, baseX: 10080, baseY: 280, w: 190, h: 22, phase: 3.4, ampX: 40, ampY: 35 },
   { x: 10620, y: 330, baseX: 10620, baseY: 330, w: 180, h: 22, phase: 5.1, ampX: 50, ampY: 25 },
 ];
 const bouncePads = [
-  { x: 6800, y: GROUND - 8, w:  55 },
+  { x: 6800, y: GROUND - 8, w:     55 },
   { x: 7550, y: GROUND - 8, w: 55 },
 ];
 const lateBramble = { x: 7900, y: GROUND - 52, w: 150, h: 52 };
