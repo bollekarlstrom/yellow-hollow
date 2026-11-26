@@ -836,34 +836,45 @@ function drawPlayer() {
   ctx.beginPath(); ctx.ellipse(3, -32, 2.2, 2.8, 0.2, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(3, -32, 0.8, 0, Math.PI * 2); ctx.fill();
 
+  // soft storybook face in the direction of travel
   ctx.fillStyle = INK;
-  ctx.beginPath(); ctx.arc(1, -39, 7.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = PLAYER_FACE;
-  ctx.beginPath(); ctx.ellipse(-1, -39, 4.2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-0.5, -39, 7.8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e2a06f';
+  ctx.beginPath(); ctx.moveTo(-5.5, -43);
+  ctx.quadraticCurveTo(-3.8, -48, 1.8, -47);
+  ctx.quadraticCurveTo(7.2, -45.5, 7.3, -39);
+  ctx.quadraticCurveTo(7.5, -35.2, 3.4, -33.8);
+  ctx.quadraticCurveTo(-2.2, -33.2, -5.2, -36.8);
+  ctx.quadraticCurveTo(-6.3, -39.5, -5.5, -43); ctx.fill();
 
-  // softer hair, brows, eyes, freckles, nose, and smile
-  ctx.fillStyle = '#7a3a24';
-  ctx.beginPath(); ctx.moveTo(-6, -43); ctx.quadraticCurveTo(-4, -49, 3, -46);
-  ctx.quadraticCurveTo(7, -43, 5, -37); ctx.quadraticCurveTo(3, -42, -1, -44);
-  ctx.quadraticCurveTo(-4, -44, -6, -43); ctx.fill();
-  ctx.fillStyle = '#d68b72';
-  ctx.beginPath(); ctx.ellipse(-3.7, -37.7, 1.5, 0.8, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(2.6, -37.7, 1.5, 0.8, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#4b2618'; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(-3.8, -41); ctx.quadraticCurveTo(-2.2, -41.8, -0.8, -41); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0.8, -41); ctx.quadraticCurveTo(2.2, -41.8, 3.8, -41); ctx.stroke();
-  ctx.fillStyle = '#2b1711';
-  ctx.beginPath(); ctx.arc(-2.1, -39.8, 0.85, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(2.1, -39.8, 0.85, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff2b4';
-  ctx.beginPath(); ctx.arc(-1.8, -40.1, 0.22, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(2.4, -40.1, 0.22, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#713621'; ctx.lineWidth = 0.7;
-  ctx.beginPath(); ctx.moveTo(0, -38.4); ctx.quadraticCurveTo(0.5, -37.2, 0.1, -36.8); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-1.5, -35.4); ctx.quadraticCurveTo(0.1, -34.2, 1.7, -35.4); ctx.stroke();
-  ctx.fillStyle = '#c96a50';
-  ctx.fillRect(-3.4, -37.1, 0.55, 0.55); ctx.fillRect(-2.6, -36.7, 0.45, 0.45);
-  ctx.fillRect(2.8, -37.1, 0.55, 0.55); ctx.fillRect(3.5, -36.7, 0.45, 0.45);
+  ctx.fillStyle = '#7b3d2a';
+  ctx.beginPath(); ctx.moveTo(-6.4, -43.5);
+  ctx.quadraticCurveTo(-5.4, -49.5, 1.2, -48.5);
+  ctx.quadraticCurveTo(6.8, -47.2, 7.6, -42);
+  ctx.quadraticCurveTo(4.2, -44.5, 1.2, -43);
+  ctx.quadraticCurveTo(-2.2, -41.5, -6.4, -43.5); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(4.8, -43); ctx.quadraticCurveTo(8.2, -40.8, 6.8, -34.8);
+  ctx.quadraticCurveTo(4.6, -38, 4.2, -42.4); ctx.fill();
+
+  ctx.strokeStyle = '#8a5037'; ctx.lineWidth = 1.15; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(1.2, -40.7); ctx.quadraticCurveTo(3.4, -41.8, 5.5, -40.7); ctx.stroke();
+  ctx.fillStyle = '#fff4c9';
+  ctx.beginPath(); ctx.ellipse(4.1, -39.1, 1.8, 1.15, 0.1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3a241b';
+  ctx.beginPath(); ctx.arc(4.5, -39.1, 0.72, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff8dc';
+  ctx.beginPath(); ctx.arc(4.2, -39.4, 0.18, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = '#9b5a43'; ctx.lineWidth = 0.85;
+  ctx.beginPath(); ctx.moveTo(6.8, -38.5); ctx.quadraticCurveTo(8.4, -37.2, 7.1, -36.2);
+  ctx.quadraticCurveTo(6.4, -35.7, 5.7, -36.2); ctx.stroke();
+  ctx.fillStyle = 'rgba(208,105,75,0.38)';
+  ctx.beginPath(); ctx.ellipse(5.6, -34.8, 2.1, 1.0, 0.15, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#7b3b32'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(3.2, -34.5); ctx.quadraticCurveTo(5.2, -33.2, 6.7, -34.2); ctx.stroke();
+  ctx.fillStyle = '#b56c4c';
+  ctx.beginPath(); ctx.arc(5.0, -35.6, 0.28, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.1, -35.3, 0.22, 0, Math.PI * 2); ctx.fill();
 }
 function drawBursts() {
   for (const b of bursts) {
