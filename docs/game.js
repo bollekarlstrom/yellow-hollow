@@ -145,6 +145,15 @@ const WIND = { x0: 2150, x1: 2620 };
 const WIND2 = { x0: 5300, x1: 5700 };
 const FIRE_X = 8720;
 const PUMPKIN_HOME = 1250;
+const hillPlate = { x: 7660, w: 80, press: 0 };
+const hillCrate = { x: 7780, y: GROUND - 48, w: 48, h: 48, vy: 0, roll: 0 };
+const hillGate = { open: 0 };
+const hillSteps = [
+  { x: 8000, y: GROUND - 40, w: 120, h: 40 },
+  { x: 8120, y: GROUND - 80, w: 120, h: 80 },
+  { x: 8240, y: GROUND - 120, w: 120, h: 120 },
+  { x: 8360, y: GROUND - 120, w: 140, h: 120 },
+];
 const checkpoints = [
   { x: 60, y: GROUND }, { x: 1060, y: GROUND }, { x: 1760, y: GROUND },
   { x: 1950, y: GROUND - 120 }, { x: 2660, y: GROUND }, { x: 3500, y: GROUND },
@@ -164,7 +173,10 @@ const hints = [
   { x: 6280, y: 130, t: 'follow the lantern glow' },
 ];
 function gateRect() { return { x: gate.x, y: GROUND - gate.h - gate.open * gate.h, w: gate.w, h: gate.h }; }
-const solidList = () => (gate.open < 1 ? [...solids, gateRect(), ...movingPlatforms] : [...solids, ...movingPlatforms]);
+const solidList = () => {
+  const base = gate.open < 1 ? [...solids, gateRect(), ...movingPlatforms] : [...solids, ...movingPlatforms];
+  return hillGate.open > 0.05 ? [...base, ...hillSteps.map(s => ({ ...s, y: GROUND - s.h + (1 - hillGate.open) * s.h }))] : base;
+};
 
 const pumpkin = { x: PUMPKIN_HOME, y: GROUND - 44, w: 48, h: 44, vy: 0, roll: 0 };
 const crows = [
@@ -242,7 +254,7 @@ function respawn() {
 // ---------- update ----------
 function update(dt) {
   time += dt; windT += dt; gust = gustAt(windT);
-  updateGate(dt); updatePumpkin(dt); updateCrows(dt); updateBursts(dt); updateMovingPlatforms(dt);
+  updateGate(dt); updatePumpkin(dt); updateHillPuzzle(dt); updateCrows(dt); updateBursts(dt); updateMovingPlatforms(dt);
   if (ended) { endT += dt; return; }
   if (player.dead) {
     deadTimer -= dt;
@@ -294,6 +306,13 @@ function updatePlayer(dt) {
       moveBox(pumpkin, push, 0, list);
       if (overlap(p, pumpkin)) p.x = dx > 0 ? pumpkin.x - p.w : pumpkin.x + pumpkin.w;
       if (pumpkin.x !== before && p.onGround) { p.pushing = true; pumpkin.roll += pumpkin.x - before; }
+    }
+    if (overlap(p, hillCrate)) {
+      const push = dx > 0 ? p.x + p.w - hillCrate.x : p.x - (hillCrate.x + hillCrate.w);
+      const before = hillCrate.x;
+      moveBox(hillCrate, push, 0, list);
+      if (overlap(p, hillCrate)) p.x = dx > 0 ? hillCrate.x - p.w : hillCrate.x + hillCrate.w;
+      if (hillCrate.x !== before && p.onGround) { p.pushing = true; hillCrate.roll += hillCrate.x - before; }
     }
   }
 
@@ -381,6 +400,18 @@ function updateMovingPlatforms(dt) {
     platform.x = platform.baseX + Math.sin(time * 0.8 + platform.phase) * platform.ampX;
     platform.y = platform.baseY + Math.sin(time * 1.1 + platform.phase) * platform.ampY;
   }
+}
+
+function updateHillPuzzle(dt) {
+  hillCrate.vy = Math.min(hillCrate.vy + GRAV * dt, MAX_FALL);
+  if (moveBox(hillCrate, 0, hillCrate.vy * dt, solidList())) {
+    if (hillCrate.vy > 300) crunch(0.2);
+    hillCrate.vy = 0;
+  }
+  const center = hillCrate.x + hillCrate.w / 2;
+  const pressed = hillCrate.y + hillCrate.h >= GROUND - 1 && center > hillPlate.x && center < hillPlate.x + hillPlate.w;
+  hillPlate.press = approach(hillPlate.press, pressed ? 1 : 0, dt * 6);
+  if (pressed) hillGate.open = Math.min(1, hillGate.open + dt * 0.8);
 }
 
 // ---------- particles ----------
@@ -949,3 +980,49 @@ const bouncePads = [
 ];
 const lateBramble = { x: 7900, y: GROUND - 52, w: 150, h: 52 };
 const finalPlate = { x: 8200, w: 90, press: 0 };
+
+// ---------- test level (remove before final release) ----------
+const testLevel = [
+  { x: 60, y: GROUND, w: 200, h: 20 },
+  { x: 300, y: GROUND, w: 200, h: 20 },
+  { x: 540, y: GROUND - 100, w: 200, h: 20 },
+  { x: 780, y: GROUND, w: 200, h: 20 },
+  { x: 1020, y: GROUND - 50, w: 200, h: 20 },
+  { x: 1260, y: GROUND, w: 200, h: 20 },
+  { x: 1500, y: GROUND - 150, w: 200, h: 20 },
+  { x: 1740, y: GROUND, w: 200, h: 20 },
+  { x: 1980, y: GROUND - 70, w: 200, h: 20 },
+  { x: 2220, y: GROUND, w: 200, h: 20 },
+  { x: 2460, y: GROUND - 120, w: 200, h: 20 },
+  { x: 2700, y: GROUND, w: 200, h: 20 },
+  { x: 2940, y: GROUND - 90, w: 200, h: 20 },
+  { x: 3180, y: GROUND, w: 200, h: 20 },
+  { x: 3420, y: GROUND - 40, w: 200, h: 20 },
+  { x: 3660, y: GROUND, w: 200, h: 20 },
+  { x: 3900, y: GROUND - 110, w: 200, h: 20 },
+  { x: 4140, y: GROUND, w: 200, h: 20 },
+  { x: 4380, y: GROUND - 80, w: 200, h: 20 },
+  { x: 4620, y: GROUND, w: 200, h: 20 },
+  { x: 4860, y: GROUND - 130, w: 200, h: 20 },
+  { x: 5100, y: GROUND, w: 200, h: 20 },
+  { x: 5340, y: GROUND - 60, w: 200, h: 20 },
+  { x: 5580, y: GROUND, w: 200, h: 20 },
+  { x: 5820, y: GROUND - 150, w: 200, h: 20 },
+  { x: 6060, y: GROUND, w: 200, h: 20 },
+  { x: 6300, y: GROUND - 100, w: 200, h: 20 },
+  { x: 6540, y: GROUND, w: 200, h: 20 },
+  { x: 6780, y: GROUND - 50, w: 200, h: 20 },
+  { x: 7020, y: GROUND, w: 200, h: 20 },
+  { x: 7260, y: GROUND - 120, w: 200, h: 20 },
+  { x: 7500, y: GROUND, w: 200, h: 20 },
+  { x: 7740, y: GROUND - 90, w: 200, h: 20 },
+  { x: 7980, y: GROUND, w: 200, h: 20 },
+  { x: 8220, y: GROUND - 40, w: 200, h: 20 },
+  { x: 8460, y: GROUND, w: 200, h: 20 },
+  { x: 8700, y: GROUND - 110, w: 200, h: 20 },
+  { x: 8940, y: GROUND, w: 200, h: 20 },
+  { x: 9180, y: GROUND - 80, w: 200, h: 20 },
+  { x: 9420, y: GROUND, w: 200, h: 20 },
+  { x: 9660, y: GROUND - 130, w: 200, h: 20 },
+  { x: 9900, y: GROUND, w: 200, h: 20 },
+];
