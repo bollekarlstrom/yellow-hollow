@@ -109,7 +109,7 @@ function flap() { for (let i = 0; i < 4; i++) noiseHit(700, 1.2, 0.07, 0.06, i *
 
 // ---------- level ----------
 const GROUND = 440;
-const WORLD_END = 9000;
+const WORLD_END = 12000;
 const solids = [
   { x: -240, y: -1000, w: 40, h: 2000, wall: true },
   { x: WORLD_END, y: -1000, w: 40, h: 2000, wall: true },
@@ -125,19 +125,26 @@ const solids = [
   { x: 7500, y: GROUND, w: 350, h: 200 },
   { x: 7850, y: GROUND, w: 650, h: 200 },
   { x: 8500, y: GROUND - 80, w: 500, h: 280 },
+  { x: 9200, y: GROUND, w: 500, h: 200 },
+  { x: 9820, y: GROUND - 40, w: 350, h: 240 },
+  { x: 10280, y: GROUND, w: 520, h: 200 },
+  { x: 10880, y: GROUND - 70, w: 420, h: 270 },
+  { x: 11340, y: GROUND, w: 660, h: 200 },
 ];
 const leafPits = [
   { x: 900, w: 110, broken: false },
   { x: 3350, w: 100, broken: false },
   { x: 5100, w: 100, broken: false },
   { x: 6120, w: 100, broken: false },
+  { x: 9700, w: 120, broken: false },
+  { x: 10800, w: 80, broken: false },
 ];
 const gate = { x: 1700, w: 26, h: 170, open: 0, latched: false };
 const plate = { x: 1640, w: 60, press: 0 };
 const brambles = { x: 2900, y: GROUND - 24, w: 90, h: 24 };
 const WIND = { x0: 2150, x1: 2620 };
 const WIND2 = { x0: 5300, x1: 5700 };
-const FIRE_X = 8720;
+const FIRE_X = 11620;
 const PUMPKIN_HOME = 1250;
 const hillPlate = { x: 7660, w: 80, press: 0 };
 const hillCrate = { x: 7780, y: GROUND - 48, w: 48, h: 48, vy: 0, roll: 0 };
@@ -155,6 +162,10 @@ const checkpoints = [
   { x: 6250, y: GROUND - 100 }, { x: 7480, y: GROUND },
   { x: 7760, y: GROUND }, { x: 8170, y: GROUND },
   { x: 8520, y: GROUND - 80 },
+  { x: 9250, y: GROUND },
+  { x: 10100, y: GROUND - 40 },
+  { x: 10920, y: GROUND - 70 },
+  { x: 11450, y: GROUND },
 ];
 const hints = [
   { x: 130, y: 180, t: '←  →   walk' },
@@ -165,6 +176,7 @@ const hints = [
   { x: 4520, y: 180, t: 'the old orchard continues beyond the hollow' },
   { x: 5380, y: 150, t: 'a second gust crosses the ridge' },
   { x: 6280, y: 130, t: 'follow the lantern glow' },
+  { x: 9300, y: 150, t: 'the moonlit bridge is beyond the hollow' },
 ];
 function gateRect() { return { x: gate.x, y: GROUND - gate.h - gate.open * gate.h, w: gate.w, h: gate.h }; }
 const solidList = () => {
@@ -283,7 +295,8 @@ function updatePlayer(dt) {
 
   // wind carries you through the air while it gusts
   const inWind = (p.x + p.w > WIND.x0 && p.x < WIND.x1) ||
-                  (p.x + p.w > WIND2.x0 && p.x < WIND2.x1);
+                  (p.x + p.w > WIND2.x0 && p.x < WIND2.x1) ||
+                  (p.x + p.w > WIND3.x0 && p.x < WIND3.x1);
   if (inWind && !p.onGround) p.vx = Math.min(p.vx + gust * 900 * dt, 560);
 
   // jumping (with a short buffer and "coyote time" for forgiving controls)
@@ -976,6 +989,9 @@ const movingPlatforms = [
   { x: 6720, y: 350, baseX: 6720, baseY: 350, w: 190, h: 22, phase: 0, ampX: 35, ampY: 18 },
   { x: 7020, y: 310, baseX: 7020, baseY: 310, w: 180, h: 22, phase: 2.1, ampX: 30, ampY: 24 },
   { x: 7300, y: 270, baseX: 7300, baseY: 270, w: 200, h: 22, phase: 4.2, ampX: 35, ampY: 20 },
+  { x: 9700, y: 330, baseX: 9700, baseY: 330, w: 180, h: 22, phase: 1.2, ampX: 45, ampY: 28 },
+  { x: 10080, y: 280, baseX: 10080, baseY: 280, w: 190, h: 22, phase: 3.4, ampX: 40, ampY: 35 },
+  { x: 10620, y: 330, baseX: 10620, baseY: 330, w: 180, h: 22, phase: 5.1, ampX: 50, ampY: 25 },
 ];
 const bouncePads = [
   { x: 6800, y: GROUND - 8, w: 55 },
