@@ -144,6 +144,7 @@ const plate = { x: 1640, w: 60, press: 0 };
 const brambles = { x: 2900, y: GROUND - 24, w: 90, h: 24 };
 const WIND = { x0: 2150, x1: 2620 };
 const WIND2 = { x0: 5300, x1: 5700 };
+const WIND3 = { x0: 9660, x1: 10180 };
 const FIRE_X = 11620;
 const PUMPKIN_HOME = 1250;
 const hillPlate = { x: 7660, w: 80, press: 0 };
