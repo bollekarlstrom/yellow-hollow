@@ -46,9 +46,9 @@ addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jumpQueued = true;
     if (e.code === 'KeyM') toggleMute();
     if (e.code === 'KeyR' && !player.dead && !ended) killPlayer(false);
-    if (e.code === 'KeyC' && !ended) warpCheckpoint(cpIndex + 1);
-    if (/^Digit[1-9]$/.test(e.code) && !ended) warpCheckpoint(Number(e.code.slice(-1)) - 1);
-    if (e.code === 'Digit0' && !ended) warpCheckpoint(checkpoints.length - 1);
+    if (e.code === 'KeyC') warpCheckpoint(cpIndex + 1);
+    if (/^Digit[1-9]$/.test(e.code)) warpCheckpoint(Number(e.code.slice(-1)) - 1);
+    if (e.code === 'Digit0') warpCheckpoint(checkpoints.length - 1);
     if (e.code === 'Enter' && ended && endT > 2) location.reload();
   }
   keys[e.code] = true;
@@ -247,11 +247,20 @@ function killPlayer(burst) {
 
 function warpCheckpoint(index) {
   cpIndex = Math.max(0, Math.min(checkpoints.length - 1, index));
+  const c = checkpoints[cpIndex];
   ended = false;
   endT = 0;
+  fade = 0;
   player.dead = false;
   player.hidden = false;
-  respawn();
+  player.onGround = true;
+  player.vx = 0;
+  player.vy = 0;
+  player.x = c.x;
+  player.y = c.y - player.h;
+  jumpQueued = false;
+  for (const lp of leafPits) lp.broken = false;
+  snapCamera = true;
 }
 
 function respawn() {
@@ -285,7 +294,7 @@ function update(dt) {
 function updatePlayer(dt) {
   const p = player;
   const dir = (holdR() ? 1 : 0) - (holdL() ? 1 : 0);
-  if (dir) p.face = dir;
+  if (dir) p.face = dir > 0 ? 1 : -1;
   const maxSpd = RUN * (p.pushing ? 0.55 : 1);
   if (dir) {
     const keepMomentum = !p.onGround && Math.sign(p.vx) === dir && Math.abs(p.vx) > maxSpd;
@@ -979,6 +988,7 @@ function drawLeafClusters() {
     const worldX = i * 67 + r() * 48;
     const sx = worldX - camX;
     if (sx < -40 || sx > W + 40) continue;
+   
     const y = GROUND - 5 - r() * (i % 5 === 0 ? 46 : 12);
     const size = 4 + r() * 7;
     drawLeaf(sx, y, size, r() * 6, r() > 0.5 ? 1 : -1, colors[i % colors.length]);
