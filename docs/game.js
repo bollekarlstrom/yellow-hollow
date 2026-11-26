@@ -802,7 +802,7 @@ function drawPlayer() {
   const cx = p.x + p.w / 2, by = p.y + p.h;
   const moving = p.onGround && Math.abs(p.vx) > 20;
   const ph = p.walk;
-  ctx.save(); ctx.translate(cx, by); ctx.scale(p.face * 1.25, 1.25);
+  ctx.save(); ctx.translate(cx, by); ctx.scale(p.face * 1.85, 1.85);
   ctx.fillStyle = INK; ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.translate(0, moving ? -Math.abs(Math.sin(ph)) * 1.5 : Math.sin(time * 2) * 0.4);
 
@@ -882,8 +882,8 @@ function drawGlow() {
   if (!player.hidden) {
     const lx = player.x + player.w / 2 + player.face * 14, ly = player.y + player.h - 14;
     const fl = 0.85 + Math.sin(time * 9) * 0.05 + Math.sin(time * 23) * 0.04;
-    radial(lx, ly, 130 * fl, 'rgba(255,170,80,0.22)');
-    radial(lx, ly, 18, 'rgba(255,210,140,0.5)');
+    radial(lx, ly, 165 * fl, 'rgba(255,170,80,0.30)');
+    radial(lx, ly, 24, 'rgba(255,210,140,0.68)');
   }
   if (FIRE_X - camX < W + 400) {
     radial(FIRE_X, GROUND - 20, 260 + Math.sin(time * 8) * 10, 'rgba(255,140,50,0.35)');
