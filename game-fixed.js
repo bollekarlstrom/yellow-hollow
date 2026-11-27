@@ -1729,46 +1729,50 @@ function drawNest() {
 }
 
 function drawApple() {
-  const a = apple, cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-  const wob = a.latched ? 0 : Math.sin(time * 2.2) * 0.035;
-  ctx.save(); ctx.translate(cx, cy + a.h * 0.5);
-  ctx.rotate(a.latched ? 0 : (a.roll / (a.w / 2)) * 0.25 + Math.sin(time * 1.7) * 0.03);
-  ctx.scale(1 + wob, 1 - wob); ctx.translate(0, -a.h * 0.5);
-  const W2 = a.w / 2, H2 = a.h / 2;
-  const body = () => {                                  // a slightly lopsided, hand-drawn apple
+  const a = apple, cx = a.x + a.w / 2, by = a.y + a.h;       // by = the floor it rests on
+  const W2 = a.w / 2, Hh = a.h;
+  // a gentle rock around the point touching the ground (never dips below the floor)
+  const tilt = a.latched ? 0 : Math.sin(a.roll * 0.09) * 0.07 + Math.sin(time * 1.3) * 0.015;
+  radial(cx, by - Hh * 0.5, a.w * 1.1, 'rgba(255,170,80,0.10)');              // faint warm halo
+  ctx.fillStyle = 'rgba(20,8,3,0.35)';                                         // contact shadow
+  ctx.beginPath(); ctx.ellipse(cx, by - 1, W2 * 0.8, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.translate(cx, by); ctx.rotate(tilt);
+  const body = () => {                     // soft apple silhouette; its lowest point is exactly y = 0
     ctx.beginPath();
-    ctx.moveTo(-1, -H2 * 0.66);
-    ctx.bezierCurveTo(W2 * 0.55, -H2 * 1.12, W2 * 1.22, -H2 * 0.45, W2 * 0.98, H2 * 0.28);
-    ctx.bezierCurveTo(W2 * 0.82, H2 * 0.92, W2 * 0.3, H2 * 1.02, 2, H2 * 0.86);
-    ctx.bezierCurveTo(-W2 * 0.3, H2 * 1.04, -W2 * 0.88, H2 * 0.86, -W2 * 1.0, H2 * 0.2);
-    ctx.bezierCurveTo(-W2 * 1.18, -H2 * 0.5, -W2 * 0.55, -H2 * 1.08, -1, -H2 * 0.66);
+    ctx.moveTo(0, -Hh * 0.84);
+    ctx.bezierCurveTo(W2 * 0.5, -Hh * 1.02, W2 * 1.08, -Hh * 0.82, W2 * 1.0, -Hh * 0.46);
+    ctx.bezierCurveTo(W2 * 0.94, -Hh * 0.14, W2 * 0.55, 0, W2 * 0.22, 0);
+    ctx.quadraticCurveTo(0, -Hh * 0.03, -W2 * 0.22, 0);
+    ctx.bezierCurveTo(-W2 * 0.55, 0, -W2 * 0.96, -Hh * 0.14, -W2 * 1.0, -Hh * 0.46);
+    ctx.bezierCurveTo(-W2 * 1.08, -Hh * 0.82, -W2 * 0.5, -Hh * 1.02, 0, -Hh * 0.84);
     ctx.closePath();
   };
-  body(); ctx.fillStyle = '#c4492a'; ctx.fill();
-  ctx.save(); body(); ctx.clip();                        // flat painted shadow crescent
-  ctx.fillStyle = '#8f2e16';
-  ctx.beginPath(); ctx.ellipse(W2 * 0.55, H2 * 0.4, W2 * 0.75, H2 * 0.95, -0.4, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#d9662b';
-  ctx.beginPath(); ctx.ellipse(-W2 * 0.25, -H2 * 0.2, W2 * 0.5, H2 * 0.55, 0.3, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createRadialGradient(-W2 * 0.45, -Hh * 0.65, 2, -W2 * 0.1, -Hh * 0.45, W2 * 1.25);
+  g.addColorStop(0, '#7a4224'); g.addColorStop(0.55, '#55291a'); g.addColorStop(1, '#3a1a0c');
+  body(); ctx.fillStyle = g; ctx.fill();
+  // warm rim light on the side facing the glow, like the pumpkins and the heroine
+  ctx.save(); body(); ctx.clip();
+  ctx.strokeStyle = 'rgba(217,148,69,0.75)'; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.arc(W2 * 0.12, -Hh * 0.46, W2 * 0.98, Math.PI * 0.98, Math.PI * 1.48); ctx.stroke();
+  ctx.strokeStyle = 'rgba(217,148,69,0.3)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(-W2 * 0.1, -Hh * 0.46, W2 * 0.95, Math.PI * 1.52, Math.PI * 1.9); ctx.stroke();
   ctx.restore();
-  ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; body(); ctx.stroke();
-  ctx.strokeStyle = '#f6cf78'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';   // painted highlight swoosh
-  ctx.beginPath(); ctx.arc(-W2 * 0.2, -H2 * 0.05, W2 * 0.55, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke();
-  ctx.fillStyle = '#f6cf78'; ctx.beginPath(); ctx.arc(-W2 * 0.68, H2 * 0.08, 1.6, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 3;                // curly stem
-  ctx.beginPath(); ctx.moveTo(0, -H2 * 0.6);
-  ctx.bezierCurveTo(-2, -H2 * 0.95, 4, -H2 * 1.25, 8, -H2 * 1.12);
-  ctx.bezierCurveTo(11, -H2 * 1.0, 9, -H2 * 0.88, 6.5, -H2 * 0.98); ctx.stroke();
-  const flutter = Math.sin(time * 3) * 0.15;              // leaf with a vein, fluttering
-  ctx.save(); ctx.translate(2, -H2 * 0.92); ctx.rotate(-0.5 + flutter);
-  ctx.fillStyle = '#e8a03a'; ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -8, -17, -3); ctx.quadraticCurveTo(-8, 4, 0, 0); ctx.fill(); ctx.stroke();
-  ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-1, -0.5); ctx.quadraticCurveTo(-8, -3, -14, -2.6); ctx.stroke();
+  // curly stem and a silhouette leaf that sways
+  ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -Hh * 0.82);
+  ctx.bezierCurveTo(-1, -Hh * 1.0, 3, -Hh * 1.12, 7, -Hh * 1.06);
+  ctx.bezierCurveTo(9.5, -Hh * 1.0, 7.5, -Hh * 0.94, 5.5, -Hh * 0.98); ctx.stroke();
+  ctx.save(); ctx.translate(1.5, -Hh * 0.94); ctx.rotate(-0.55 + Math.sin(time * 2.4) * 0.12);
+  ctx.fillStyle = '#3a1a0c';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -8, -17, -3); ctx.quadraticCurveTo(-8, 4, 0, 0); ctx.fill();
+  ctx.strokeStyle = 'rgba(168,90,50,0.8)'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(-1, -0.5); ctx.quadraticCurveTo(-8, -3.2, -14.5, -2.8); ctx.stroke();
   ctx.restore();
   ctx.restore();
-  if (!a.latched) for (let i = 0; i < 3; i++) {           // little magic sparkles around it
-    const t = time * 1.3 + i * 2.1, k = (Math.sin(t * 1.7) + 1) / 2;
-    sparkle(cx + Math.cos(t) * (a.w * 0.72), cy - a.h * 0.25 + Math.sin(t * 1.3) * a.h * 0.45, 1.5 + k * 2.4, 0.25 + k * 0.6);
+  // a couple of slow glowing motes drifting up from it, like the fireflies
+  if (!a.latched) for (let i = 0; i < 2; i++) {
+    const t = (time * 0.35 + i * 0.5) % 1;
+    radial(cx + Math.sin(time * 0.9 + i * 3) * W2 * 0.9, by - Hh - t * 34, 5, `rgba(255,214,140,${(1 - t) * 0.45})`);
   }
 }
 function sparkle(x, y, s, alpha) {
@@ -1780,47 +1784,70 @@ function sparkle(x, y, s, alpha) {
 }
 
 // giant toadstools that grow out of the ground as the apple-stairs
-const TOAD_CAPS = ['#b8401f', '#d9662b', '#8f2e16', '#e8a03a'];
+// giant toadstools that grow out of the ground as the apple-stairs: dark silhouettes with
+// a warm rim light, droopy curled cap edges and softly glowing spots (like the background mushrooms)
+const TOAD_CAPS = ['#4a2214', '#55291a', '#3f1d10', '#5e2e18'];
 function drawToadstoolStep(r, i) {
   const h = GROUND - r.y;
   if (h < 1) return;
-  const cx = r.x + r.w / 2, sway = Math.sin(time * 1.4 + i) * 0.6;
-  ctx.save();
-  // stem: a soft, slightly bulging curve, with a little frill under the cap
-  const sw = r.w * 0.38;
+  const cx = r.x + r.w / 2, sway = Math.sin(time * 1.2 + i * 1.7) * 1.2, lean = (i % 2 ? 1 : -1) * 3;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // a baby toadstool at the foot of every other one
+  if (i % 2 === 0 && h > 20) drawLittleToadstool(r.x - 4, GROUND, 9, i);
+  // curvy stem leaning a little, thicker at the base
+  const sw = r.w * 0.36;
   ctx.fillStyle = INK; ctx.beginPath();
-  ctx.moveTo(cx - sw * 0.62, GROUND + 2);
-  ctx.bezierCurveTo(cx - sw * 0.75, GROUND - h * 0.4, cx - sw * 0.35 + sway, r.y + 16, cx - sw * 0.42 + sway, r.y + 8);
-  ctx.lineTo(cx + sw * 0.42 + sway, r.y + 8);
-  ctx.bezierCurveTo(cx + sw * 0.35 + sway, r.y + 16, cx + sw * 0.75, GROUND - h * 0.4, cx + sw * 0.62, GROUND + 2);
+  ctx.moveTo(cx - sw * 0.7, GROUND + 2);
+  ctx.bezierCurveTo(cx - sw * 0.85 - lean, GROUND - h * 0.35, cx - sw * 0.5 + lean + sway, r.y + h * 0.3, cx - sw * 0.38 + sway, r.y + 10);
+  ctx.lineTo(cx + sw * 0.38 + sway, r.y + 10);
+  ctx.bezierCurveTo(cx + sw * 0.5 + lean + sway, r.y + h * 0.3, cx + sw * 0.85 - lean, GROUND - h * 0.35, cx + sw * 0.7, GROUND + 2);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(200,120,60,0.45)'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(cx - sw * 0.5, GROUND - 4); ctx.quadraticCurveTo(cx - sw * 0.6, GROUND - h * 0.45, cx - sw * 0.3 + sway, r.y + 14); ctx.stroke();
-  if (h > 30) {
-    ctx.fillStyle = INK; ctx.beginPath();
-    ctx.ellipse(cx + sway, r.y + 17, sw * 0.62, 3, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  // cap: flat on top so feet sit right on it, rounded dome edges underneath
-  const x0 = r.x - 5, x1 = r.x + r.w + 5;
-  ctx.fillStyle = TOAD_CAPS[i % TOAD_CAPS.length]; ctx.strokeStyle = INK; ctx.lineWidth = 2.4;
+  ctx.strokeStyle = 'rgba(217,148,69,0.35)'; ctx.lineWidth = 1.3;          // rim light down one side
+  ctx.beginPath(); ctx.moveTo(cx - sw * 0.62, GROUND - 3);
+  ctx.bezierCurveTo(cx - sw * 0.55 - lean, GROUND - h * 0.35, cx - sw * 0.2 + lean + sway, r.y + h * 0.3, cx - sw * 0.32 + sway, r.y + 12); ctx.stroke();
+  // cap: flat on top (feet rest exactly on it), soft shoulders, droopy edges curling under
+  // (the top is a very gentle dome, only ~2px, so feet still sit right on it)
+  const x0 = r.x - 9, x1 = r.x + r.w + 9, droop = 9 + Math.sin(time * 1.5 + i) * 1.2;
+  ctx.fillStyle = TOAD_CAPS[i % TOAD_CAPS.length];
   ctx.beginPath();
-  ctx.moveTo(x0 + 8, r.y);
-  ctx.lineTo(x1 - 8, r.y);
-  ctx.quadraticCurveTo(x1 + 2, r.y + 1, x1, r.y + 10);
-  ctx.quadraticCurveTo(cx, r.y + 17, x0, r.y + 10);
-  ctx.quadraticCurveTo(x0 - 2, r.y + 1, x0 + 8, r.y);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';                     // darker underside band
-  ctx.beginPath(); ctx.moveTo(x1 - 1, r.y + 8); ctx.quadraticCurveTo(cx, r.y + 15, x0 + 1, r.y + 8);
-  ctx.quadraticCurveTo(cx, r.y + 11, x1 - 1, r.y + 8); ctx.fill();
-  // glowing spots
-  for (let k = 0; k < 4; k++) {
-    const sx = x0 + 10 + k * ((x1 - x0 - 20) / 3) + (hash(i * 7 + k) - 0.5) * 6, sy = r.y + 4 + hash(i * 3 + k) * 3;
-    const pulse = 0.6 + Math.sin(time * 2 + k + i) * 0.25;
-    radial(sx, sy, 7, `rgba(255,220,150,${0.18 * pulse})`);
-    ctx.fillStyle = '#ffe6b0'; ctx.beginPath(); ctx.ellipse(sx, sy, 2.2 + (k % 2), 1.5 + (k % 2) * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.moveTo(x0 + 14, r.y + 2);
+  ctx.quadraticCurveTo(cx, r.y - 2, x1 - 14, r.y + 2);
+  ctx.bezierCurveTo(x1 - 2, r.y + 3, x1 + 3, r.y + 10, x1 + 1, r.y + 9 + droop);              // round shoulder, drooping
+  ctx.quadraticCurveTo(x1 - 0.5, r.y + 14 + droop, x1 - 5, r.y + 11 + droop * 0.7);          // little curl at the tip
+  ctx.quadraticCurveTo(cx, r.y + 19, x0 + 5, r.y + 11 + droop * 0.7);
+  ctx.quadraticCurveTo(x0 + 0.5, r.y + 14 + droop, x0 - 1, r.y + 9 + droop);
+  ctx.bezierCurveTo(x0 - 3, r.y + 10, x0 + 2, r.y + 3, x0 + 14, r.y + 2);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(130,64,32,0.45)'; ctx.lineWidth = 0.9;           // gills underneath
+  for (let k = 1; k < 6; k++) {
+    const gx = x0 + 6 + k * (x1 - x0 - 12) / 6;
+    ctx.beginPath(); ctx.moveTo(gx, r.y + 13); ctx.lineTo(cx + (gx - cx) * 0.6, r.y + 17); ctx.stroke();
   }
+  ctx.strokeStyle = 'rgba(217,148,69,0.6)'; ctx.lineWidth = 1.6;           // warm rim along the top and one shoulder
+  ctx.beginPath(); ctx.moveTo(x0 + 1, r.y + 10); ctx.bezierCurveTo(x0 + 1, r.y + 4, x0 + 6, r.y + 2.5, x0 + 14, r.y + 2.5);
+  ctx.quadraticCurveTo(cx, r.y - 1, x1 - 18, r.y + 2.5); ctx.stroke();
+  // softly glowing spots that breathe
+  for (let k = 0; k < 4; k++) {
+    const sx = x0 + 11 + k * ((x1 - x0 - 22) / 3) + (hash(i * 7 + k) - 0.5) * 6, sy = r.y + 6 + hash(i * 3 + k) * 5;
+    const pulse = 0.55 + Math.sin(time * 1.6 + k * 1.3 + i) * 0.3;
+    radial(sx, sy, 8, `rgba(255,210,130,${0.22 * pulse})`);
+    ctx.fillStyle = `rgba(255,224,160,${0.55 + pulse * 0.35})`;
+    ctx.beginPath(); ctx.ellipse(sx, sy, 1.8 + (k % 2) * 0.6, 1.3 + (k % 2) * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // a spore now and then, drifting up
+  const st = (time * 0.3 + i * 0.37) % 1;
+  radial(cx + Math.sin(time + i) * 10, r.y - 4 - st * 40, 4, `rgba(255,220,150,${(1 - st) * 0.4})`);
   ctx.restore();
+}
+function drawLittleToadstool(x, by, s, seed) {
+  const sw = Math.sin(time * 1.6 + seed) * 0.6;
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.moveTo(x - s * 0.15, by); ctx.quadraticCurveTo(x - s * 0.2 + sw, by - s * 0.6, x - s * 0.1 + sw, by - s); ctx.lineTo(x + s * 0.12 + sw, by - s);
+  ctx.quadraticCurveTo(x + s * 0.2 + sw, by - s * 0.6, x + s * 0.18, by); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4a2214';
+  ctx.beginPath(); ctx.ellipse(x + sw, by - s, s * 0.55, s * 0.4, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(255,224,160,0.8)'; ctx.beginPath(); ctx.arc(x + sw - s * 0.15, by - s * 1.18, 0.9, 0, Math.PI * 2); ctx.fill();
+  radial(x + sw, by - s * 1.1, 6, 'rgba(255,210,130,0.18)');
 }
 
 const MOSS = ['#3f4220', '#4b4e27', '#565a2c', '#44471f'];
@@ -2143,13 +2170,21 @@ function drawTreasure(kind, cx, by, alpha, rot) {
     for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(k * 7 - 6, -25); ctx.lineTo(k * 7 + 6, -38); ctx.moveTo(k * 7 + 6, -25); ctx.lineTo(k * 7 - 6, -38); ctx.stroke(); }
     ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -40); ctx.bezierCurveTo(1, -46, 6, -48, 7, -44); ctx.stroke();
   } else if (kind === 'toadstool') {
-    ctx.fillStyle = '#e9c58e';                            // stem
-    ctx.beginPath(); ctx.moveTo(-8, 0); ctx.bezierCurveTo(-10, -12, -6, -20, -7, -26); ctx.lineTo(7, -26); ctx.bezierCurveTo(6, -20, 10, -12, 8, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#d9662b';                            // cap
-    ctx.beginPath(); ctx.moveTo(-23, -24); ctx.bezierCurveTo(-22, -46, 22, -46, 23, -24); ctx.quadraticCurveTo(0, -19, -23, -24); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#8f2e16'; ctx.beginPath(); ctx.moveTo(10, -40); ctx.bezierCurveTo(20, -36, 22, -28, 21, -24.5); ctx.quadraticCurveTo(14, -27, 10, -40); ctx.fill();
-    ctx.fillStyle = '#ffe6b0';
-    for (const [sx, sy, r] of [[-12, -31, 3.4], [-1, -38, 2.6], [10, -32, 3], [3, -27.5, 2], [-17, -26.5, 1.8]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill(); }
+    const sw = Math.sin(time * 1.4) * 0.8;
+    ctx.fillStyle = INK;                                   // curvy silhouette stem
+    ctx.beginPath(); ctx.moveTo(-8, 0); ctx.bezierCurveTo(-9, -10, -4 + sw, -18, -6 + sw, -25); ctx.lineTo(6 + sw, -25); ctx.bezierCurveTo(4 + sw, -18, 9, -10, 8, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(217,148,69,0.4)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-6.5, -2); ctx.bezierCurveTo(-7.5, -10, -3 + sw, -18, -4.5 + sw, -23); ctx.stroke();
+    ctx.fillStyle = '#4a2214';                             // dark droopy cap
+    ctx.beginPath(); ctx.moveTo(-22 + sw, -22); ctx.bezierCurveTo(-23 + sw, -44, 23 + sw, -44, 22 + sw, -22);
+    ctx.quadraticCurveTo(20 + sw, -18, 17 + sw, -21); ctx.quadraticCurveTo(0 + sw, -18, -17 + sw, -21); ctx.quadraticCurveTo(-20 + sw, -18, -22 + sw, -22); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(217,148,69,0.65)'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(sw, -24, 21, Math.PI * 1.12, Math.PI * 1.55); ctx.stroke();
+    for (const [sx, sy, r, k] of [[-11, -30, 2.4, 0], [0, -37, 2, 1], [10, -31, 2.2, 2], [3, -26, 1.5, 3]]) {
+      const pulse = 0.6 + Math.sin(time * 1.7 + k) * 0.3;
+      radial(sx + sw, sy, 7, `rgba(255,210,130,${0.25 * pulse * ctx.globalAlpha})`);
+      ctx.fillStyle = `rgba(255,224,160,${0.6 + pulse * 0.3})`; ctx.beginPath(); ctx.arc(sx + sw, sy, r, 0, Math.PI * 2); ctx.fill();
+    }
   } else {
     ctx.fillStyle = '#5e2a14';                            // pinecone body
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-16, -6, -18, -34, 0, -46); ctx.bezierCurveTo(18, -34, 16, -6, 0, 0); ctx.fill(); ctx.stroke();
