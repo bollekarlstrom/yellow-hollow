@@ -4,13 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ember Hollow</title>
+  <link rel="preload" href="fonts/SpecialElite.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
     canvas { display: block; margin: 0 auto; }
+    @font-face {
+      font-family: 'Special Elite';
+      src: url('fonts/SpecialElite.woff2') format('woff2');
+      font-display: swap;
+    }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
-  <script src="game-fixed.js?v=2026-11-27-apple-mushrooms"></script>
+  <script src="game-fixed.js?v=2026-11-27-tunnel-wraith"></script>
 </body>
 </html>
